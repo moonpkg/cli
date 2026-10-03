@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>moon: install anything on Linux</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="wrap">
+<header>
+  <a class="logo" href="#top" aria-label="moon home">
+    <img src="assets/logo.webp" style="width:20px;height:20px;">moon
+  </a>
+  <nav>
+    <a href="#install">Install</a><a href="#how">How it works</a><a href="#commands">Commands</a><a href="#doctor">Doctor</a><a href="#portable">Portable</a>
+    <button class="theme" id="theme" aria-label="Toggle light and dark">light/dark</button>
+    <button class="btn" onclick="document.getElementById('install').scrollIntoView({behavior:'smooth'})">Install</button>
+  </nav>
+</header>
+
+<section id="top" class="pad">
+  <h1>Install anything on Linux<br>with one command.</h1>
+  <p class="dim">moon installs a downloaded archive, AppImage or .deb. Zero crates, zero daemons, one binary.</p>
+
+  <div id="install">
+    <h2>Installation</h2>
+    <p class="dim">Install moon from releases using the install script:</p>
+    <div class="box">
+      <div class="cmdrow">
+        <div class="cmd"><span class="p">$ </span><span id="installcmd">curl -fsSL https://moonpkg.github.io/cli/scripts/install.sh | bash</span></div>
+        <button class="copy" id="copyinstall">copy</button>
+      </div>
+    </div>
+    <p class="dim" style="margin-top:12px">The script installs the binary to <code>~/.local/bin</code> and puts release assets in <code>~/.local/share/moon</code>.</p>
+  </div>
+
+  <div class="box" id="tabs" style="margin-top:40px">
+    <div class="tabs" role="tablist" aria-label="Input type">
+      <button class="tab" role="tab" aria-selected="true" data-cmd="moon install app-1.2.3-linux-x64.tar.xz">archive</button>
+      <button class="tab" role="tab" aria-selected="false" data-cmd="moon install SomeApp.AppImage">appimage</button>
+      <button class="tab" role="tab" aria-selected="false" data-cmd="moon install nowly-host.deb">deb</button>
+      <button class="tab" role="tab" aria-selected="false" data-cmd="moon install https://example.com/app.tar.gz">url</button>
+      <button class="tab" role="tab" aria-selected="false" data-cmd="moon">picker</button>
+    </div>
+    <div class="cmdrow">
+      <div class="cmd"><span class="p">$ </span><span id="cmdtext">moon install app-1.2.3-linux-x64.tar.xz</span></div>
+      <button class="copy" id="copy">copy</button>
+    </div>
+  </div>
+
+  <div class="box term" aria-label="Example install output">
+    <div class="termbar"><span>~/Downloads</span><button class="copy" id="replay">replay</button></div>
+    <pre id="term" aria-live="polite"></pre>
+  </div>
+</section>
+
+<section id="how" class="pad">
+  <h2>What happens when you install</h2>
+  <p class="dim">Every step is recorded, so nothing is left behind when you remove an app.</p>
+  <ol class="steps">
+    <li><b>1</b><span>Extract the archive into <code>~/.local/share/moon/apps/&lt;name&gt;/</code></span></li>
+    <li><b>2</b><span>Symlink the executables into <code>~/.local/bin</code> so they run from a terminal</span></li>
+    <li><b>3</b><span>Write <code>~/.local/share/applications/&lt;name&gt;.desktop</code>, reusing the package's own file and icon</span></li>
+    <li><b>4</b><span>Run <code>update-desktop-database</code> so the app shows in your menu</span></li>
+    <li><b>5</b><span>Save a manifest, so <code>moon remove</code> and <code>moon undo</code> can restore everything</span></li>
+  </ol>
+</section>
+
+<section id="commands" class="pad">
+  <h2>Commands</h2>
+  <p class="dim">Short aliases work too: <code>ls</code>, <code>rm</code>, <code>i</code>, <code>show</code>, <code>log</code>, <code>check</code>.</p>
+  <div class="tablewrap"><table>
+    <tr><th>command</th><th>what it does</th></tr>
+    <tr><td>moon install &lt;file|url&gt;</td><td>Install or upgrade an app</td></tr>
+    <tr><td>moon</td><td>Pick a file in the current directory</td></tr>
+    <tr><td>moon inspect &lt;file|url|last&gt;</td><td>Show what installing would do, change nothing</td></tr>
+    <tr><td>moon list</td><td>List installed apps</td></tr>
+    <tr><td>moon remove &lt;name&gt;...</td><td>Uninstall binaries, menu entry and files</td></tr>
+    <tr><td>moon undo [name]</td><td>Remove the app installed last (asks first)</td></tr>
+    <tr><td>moon doctor [--fix]</td><td>Find broken entries and repair them</td></tr>
+    <tr><td>moon export &lt;name&gt; [dir]</td><td>Copy an installed app as a portable bundle</td></tr>
+    <tr><td>moon unexport &lt;name&gt;</td><td>Delete a portable bundle</td></tr>
+    <tr><td>moon history [-n N]</td><td>Show what was installed, and when</td></tr>
+    <tr><td>moon config</td><td>Change settings</td></tr>
+  </table></div>
+  <div class="chips" aria-label="Supported inputs"><span>.tar.gz</span><span>.tar.xz</span><span>.tar.bz2</span><span>.tar.zst</span><span>.zip</span><span>.7z</span><span>.AppImage</span><span>.deb</span><span>http(s)://</span></div>
+</section>
+
+<section id="doctor" class="pad">
+  <h2>Fix broken installs</h2>
+  <p class="dim">moon doctor finds missing apps, dead symlinks and stale menu entries. Add --fix to clean up.</p>
+  <div class="box"><pre class="out"><span class="dim">$ moon doctor</span>
+
+<span class="warn">⚠ someapp 1.2.3</span>
+   Application missing: ~/.local/share/moon/apps/someapp
+   Menu entry missing: ~/.local/share/applications/someapp.desktop
+
+<span class="warn">⚠ btop</span>
+   Symlink exists, target missing: ~/.local/bin/btop</pre></div>
+</section>
+
+<section id="portable" class="pad">
+  <h2>Keep apps on a USB stick</h2>
+  <p class="dim">Links and menu entries still work. Plug the drive into another machine and the app is there.</p>
+  <div class="cols">
+    <div class="box"><pre class="out"><span class="dim">$ </span>moon install SomeApp.AppImage \
+    --portable-dir /mnt/USB/Apps
+
+<span class="dim">$ </span>moon export someapp /mnt/USB/Apps</pre></div>
+    <div class="box"><pre class="out">USB/
+└── Apps/
+    └── someapp/
+        ├── SomeApp.AppImage
+        ├── someapp.desktop
+        └── icon.png</pre></div>
+  </div>
+</section>
+
+<section class="pad">
+  <h2>.deb without root</h2>
+  <p class="dim">Packages install per user into ~/.local by default. Scripts never run unless you ask.</p>
+  <div class="box"><pre class="out"><span class="dim">$ </span>moon install nowly-host.deb --dry-run   <span class="dim"># show the plan, write nothing</span>
+<span class="dim">$ </span>moon install nowly-host.deb             <span class="dim"># per-user, into ~/.local</span>
+<span class="dim">$ </span>sudo moon install nowly-host.deb --root <span class="dim"># into the real /usr</span></pre></div>
+</section>
+
+<footer>
+  <span>moon, by @noxygalaxy</span>
+  <span><a href="https://github.com/moonpkg/cli">GitHub</a> &nbsp; <a href="#">Docs</a> &nbsp; <a href="#top">Back to top</a></span>
+</footer>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>

@@ -1,4 +1,4 @@
-![DeathMarker Banner](docs/assets/banner.webp)
+![Banner](docs/assets/banner.webp)
 
 `moon` installs a downloaded archive, AppImage or `.deb` in one command. Zero crates, zero daemons, one binary. ( more features in future )
 
