@@ -3,6 +3,7 @@ use std::fs;
 use std::io::Write;
 use std::path::PathBuf;
 
+use crate::paths::Dirs;
 use crate::util::Res;
 
 pub mod ico {
@@ -32,6 +33,7 @@ pub mod ico {
     pub const UP: &str = "\u{f077}";
     pub const MOON: &str = "\u{f186}";
     pub const EXAM: &str = "\u{f058}";
+    pub const STEP: &str = "\u{f105}";
 }
 
 #[derive(Clone, Copy, PartialEq)]
@@ -92,6 +94,14 @@ impl Config {
     pub fn icon<'a>(&'a self, c: &'a str) -> &'a str {
         if self.icons_on() { c } else { "" }
     }
+
+    pub fn glyph<'a>(&'a self, c: &'a str, plain: &'a str) -> &'a str {
+        if self.icons_on() { c } else { plain }
+    }
+
+    pub fn step<'a>(&'a self) -> &'a str {
+        self.glyph(ico::STEP, "==>")
+    }
 }
 
 fn apps_hint(cfg: &Config) -> String {
@@ -144,17 +154,30 @@ pub fn has_nerd_font() -> bool {
     false
 }
 
-pub fn cmd_config(cfg: &mut Config, icons_set: bool) -> Res<()> {
+pub fn cmd_config(cfg: &mut Config, icons_set: bool, args: &[String]) -> Res<()> {
     let interactive = {
         use std::io::IsTerminal;
         std::io::stdin().is_terminal()
     };
+    let yes = args.iter().any(|a| a == "-y" || a == "--yes");
+    let script = args
+        .iter()
+        .position(|a| a == "--script")
+        .and_then(|i| args.get(i + 1))
+        .map(String::as_str);
     let mode_str = |m: IconMode| match m {
         IconMode::Auto => "auto",
         IconMode::Always => "always",
         IconMode::Never => "never",
     };
     let detected = if cfg.nerd_detected { "found" } else { "not installed" };
+
+    if args.iter().any(|a| a == "--check") {
+        return crate::update::cmd_check(cfg);
+    }
+    if args.iter().any(|a| a == "--update") {
+        return crate::update::cmd_update(&Dirs::new()?, cfg, script, yes);
+    }
 
     if icons_set && !interactive {
         cfg.save()?;
@@ -168,10 +191,13 @@ pub fn cmd_config(cfg: &mut Config, icons_set: bool) -> Res<()> {
         println!("  {}  moon settings", cfg.icon(ico::COG));
         println!("  {}", "\u{2500}".repeat(40));
         println!("  {:<14}{} ({})", "Icons:", mode_str(cfg.icons), detected);
+        println!("  {:<14}{}", "Version:", crate::update::VERSION);
         println!("  {:<14}{}", "Config:", cfg.path.display());
         println!("  {:<14}{}", "Apps:", format!("{}/apps", apps_hint(cfg)));
         println!();
         println!("  {} set with:  moon config --icons auto|always|never", cfg.icon(ico::BULLET));
+        println!("  {} check with: moon config --check", cfg.icon(ico::BULLET));
+        println!("  {} update with: open `moon config`, pick 2", cfg.icon(ico::BULLET));
         println!();
         return Ok(());
     }
@@ -187,6 +213,7 @@ pub fn cmd_config(cfg: &mut Config, icons_set: bool) -> Res<()> {
         println!("  {}  moon settings", cfg.icon(ico::COG));
         println!("  {}", "\u{2500}".repeat(40));
         println!("  {:<3}{:<20}{}", "1.", "Icons", format!("{} (Nerd Font {})", mode_str(cfg.icons), detected));
+        println!("  {:<3}{:<20}{}", "2.", "Update moon", format!("now {}", crate::update::VERSION));
         println!("  {:<3}{}", "0.", "Cancel");
         println!();
         print!("  {} ", cfg.icon(ico::ARROW));
@@ -216,8 +243,12 @@ pub fn cmd_config(cfg: &mut Config, icons_set: bool) -> Res<()> {
                 cfg.save()?;
                 println!("  {} Saved: icons = {}", cfg.icon(ico::CHECK), mode_str(cfg.icons));
             }
+            "2" => {
+                let d = Dirs::new()?;
+                crate::update::cmd_update(&d, cfg, script, yes)?;
+            }
             "0" | "" => return Ok(()),
-            _ => println!("  Pick 0-1."),
+            _ => println!("  Pick 0-2."),
         }
     }
 }

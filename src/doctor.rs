@@ -288,18 +288,18 @@ pub fn cmd_doctor(d: &Dirs, cfg: &Config, fix: bool, yes: bool) -> Res<()> {
     }
     println!();
     if fixed > 0 {
-        println!("==> {} Fixed {fixed} app(s)", cfg.icon(ico::WRENCH));
+        println!("{} {} Fixed {fixed} app(s)", cfg.step(), cfg.icon(ico::WRENCH));
     } else {
-        println!("==> {} Nothing could be fixed automatically", cfg.icon(ico::WARN));
+        println!("{} {} Nothing could be fixed automatically", cfg.step(), cfg.icon(ico::WARN));
     }
 
     let after = scan(d)?.into_iter().filter(|r| !r.problems.is_empty()).count();
     if after == 0 {
-        println!("==> {} No broken entries left", cfg.icon(ico::CHECK));
+        println!("{} {} No broken entries left", cfg.step(), cfg.icon(ico::CHECK));
     } else {
         println!(
-            "==> {} {after} app(s) still have problems, run `moon doctor` to look",
-            cfg.icon(ico::WARN)
+            "{} {} {after} app(s) still have problems, run `moon doctor` to look",
+            cfg.step(), cfg.icon(ico::WARN)
         );
     }
     crate::desktop::update_desktop_db(d);

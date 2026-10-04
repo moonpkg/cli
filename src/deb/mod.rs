@@ -222,7 +222,7 @@ pub fn install_deb(d: &Dirs, o: &InstallOpts, src: &Path, work: &Path, fname: &s
         let _ = f.take(16).read_to_string(&mut v);
         let v = v.trim().to_string();
         if !v.starts_with('2') {
-            println!("==> {} note: unexpected debian-binary version '{v}'", Config::load().icon(ico::INFO));
+            println!("{} {} note: unexpected debian-binary version '{v}'", Config::load().step(), Config::load().icon(ico::INFO));
         }
     }
 
@@ -267,8 +267,8 @@ pub fn install_deb(d: &Dirs, o: &InstallOpts, src: &Path, work: &Path, fname: &s
     let cfg = Config::load();
     let version = meta.get("Version").unwrap_or("").to_string();
     println!(
-        "==> {} Installing '{name}'{} from {fname}",
-        cfg.icon(ico::PACKAGE),
+        "{} {} Installing '{name}'{} from {fname}",
+        cfg.step(), cfg.icon(ico::PACKAGE),
         if version.is_empty() { String::new() } else { format!(" {version}") }
     );
     if let Some(s) = meta.get("Summary").or_else(|| meta.get("Description")) {
@@ -285,8 +285,8 @@ pub fn install_deb(d: &Dirs, o: &InstallOpts, src: &Path, work: &Path, fname: &s
         .collect();
     if !scripts.is_empty() && !o.run_scripts {
         println!(
-            "==> {} Package ships {} (skipped, use --run-scripts to run them)",
-            cfg.icon(ico::WARN),
+            "{} {} Package ships {} (skipped, use --run-scripts to run them)",
+            cfg.step(), cfg.icon(ico::WARN),
             scripts.join(", ")
         );
     }
@@ -351,7 +351,7 @@ pub fn install_deb(d: &Dirs, o: &InstallOpts, src: &Path, work: &Path, fname: &s
         plan.iter().filter(|e| conflict_for(e)).map(|e| e.rel.as_str()).collect();
 
     if o.dry_run {
-        println!("==> {} Dry run: nothing written ({} entries)", cfg.icon(ico::EXAM), plan.len());
+        println!("{} {} Dry run: nothing written ({} entries)", cfg.step(), cfg.icon(ico::EXAM), plan.len());
         for e in plan.iter().filter(|e| matches!(e.node, Node::File)) {
             let (tag, mark) = match e.act {
                 Act::Fresh => ("add", cfg.icon(ico::CHECK)),
@@ -369,8 +369,8 @@ pub fn install_deb(d: &Dirs, o: &InstallOpts, src: &Path, work: &Path, fname: &s
         }
         if !relocated.is_empty() {
             println!(
-                "==> {} {} paths outside /usr are relocated to {}/system (use --root for the real paths)",
-                cfg.icon(ico::WARN),
+                "{} {} {} paths outside /usr are relocated to {}/system (use --root for the real paths)",
+                cfg.step(), cfg.icon(ico::WARN),
                 relocated.len(),
                 app_dir.display()
             );
@@ -387,7 +387,7 @@ pub fn install_deb(d: &Dirs, o: &InstallOpts, src: &Path, work: &Path, fname: &s
     }
 
     if app_dir.exists() || manifest_path(d, &name).exists() {
-        println!("==> {} Replacing existing install", cfg.icon(ico::REFRESH));
+        println!("{} {} Replacing existing install", cfg.step(), cfg.icon(ico::REFRESH));
         remove_app(d, &name, true)?;
     }
     fs::create_dir_all(&app_dir).map_err(|e| e.to_string())?;
@@ -425,7 +425,7 @@ pub fn install_deb(d: &Dirs, o: &InstallOpts, src: &Path, work: &Path, fname: &s
                             }
                             copy_any(&e.target, &bak)?;
                             st.backups.push((bak, e.target.clone()));
-                            println!("==> {} Backed up {}", cfg.icon(ico::SAVE), e.target.display());
+                            println!("{} {} Backed up {}", cfg.step(), cfg.icon(ico::SAVE), e.target.display());
                         }
                         let _ = fs::remove_file(&e.target);
                     }
@@ -507,7 +507,7 @@ pub fn install_deb(d: &Dirs, o: &InstallOpts, src: &Path, work: &Path, fname: &s
                 }
             }
             symlink(target, &l).map_err(|e| format!("cannot link {}: {e}", l.display()))?;
-            println!("==> {} Linked  {}  ->  {}", cfg.icon(ico::LINK), l.display(), target.display());
+            println!("{} {} Linked  {}  ->  {}", cfg.step(), cfg.icon(ico::LINK), l.display(), target.display());
             st.links.push(l);
             st.cmds.push(file.clone());
         }
@@ -632,8 +632,8 @@ pub fn install_deb(d: &Dirs, o: &InstallOpts, src: &Path, work: &Path, fname: &s
 
     for s in &st.shared {
         println!(
-            "==> {} Kept   /{s} (identical file already present, moon will not remove it)",
-            cfg.icon(ico::SHIELD)
+            "{} {} Kept   /{s} (identical file already present, moon will not remove it)",
+            cfg.step(), cfg.icon(ico::SHIELD)
         );
     }
     if !relocated.is_empty() {
@@ -641,8 +641,8 @@ pub fn install_deb(d: &Dirs, o: &InstallOpts, src: &Path, work: &Path, fname: &s
         uniq.sort();
         uniq.dedup();
         println!(
-            "==> {} {} path(s) outside /usr ({} ...) live in {}/system, not at their real path. Re-run with --root (sudo) for a system-wide install.",
-            cfg.icon(ico::WARN),
+            "{} {} {} path(s) outside /usr ({} ...) live in {}/system, not at their real path. Re-run with --root (sudo) for a system-wide install.",
+            cfg.step(), cfg.icon(ico::WARN),
             relocated.len(),
             uniq.iter().take(3).cloned().collect::<Vec<_>>().join(", "),
             app_dir.display()
@@ -650,15 +650,15 @@ pub fn install_deb(d: &Dirs, o: &InstallOpts, src: &Path, work: &Path, fname: &s
     }
     if st.rewritten > 0 {
         println!(
-            "==> {} Rewrote {} absolute path(s) to the new locations",
-            cfg.icon(ico::MAGIC),
+            "{} {} Rewrote {} absolute path(s) to the new locations",
+            cfg.step(), cfg.icon(ico::MAGIC),
             st.rewritten
         );
     }
     if !st.skipped.is_empty() {
         println!(
-            "==> {} Skipped {} special file(s) ({})",
-            cfg.icon(ico::WARN),
+            "{} {} Skipped {} special file(s) ({})",
+            cfg.step(), cfg.icon(ico::WARN),
             st.skipped.len(),
             st.skipped.join(", ")
         );
@@ -674,12 +674,12 @@ pub fn install_deb(d: &Dirs, o: &InstallOpts, src: &Path, work: &Path, fname: &s
         );
     }
     if let Some(sz) = meta.get("Installed-Size").and_then(|s| s.split_whitespace().next()) {
-        println!("==> {} Package size on disk: {sz} KiB", cfg.icon(ico::DRIVE));
+        println!("{} {} Package size on disk: {sz} KiB", cfg.step(), cfg.icon(ico::DRIVE));
     }
     if !st.desktop.is_empty() {
-        println!("==> {} Menu entry {}", cfg.icon(ico::LIST), st.desktop[0].display());
+        println!("{} {} Menu entry {}", cfg.step(), cfg.icon(ico::LIST), st.desktop[0].display());
     } else {
-        println!("==> {} No .desktop file in the package, no menu entry", cfg.icon(ico::INFO));
+        println!("{} {} No .desktop file in the package, no menu entry", cfg.step(), cfg.icon(ico::INFO));
     }
 
     let mut roots: BTreeMap<String, usize> = BTreeMap::new();
@@ -699,15 +699,15 @@ pub fn install_deb(d: &Dirs, o: &InstallOpts, src: &Path, work: &Path, fname: &s
             parts.push(format!("+{} more", roots.len() - 6));
         }
         println!(
-            "==> {} {} file(s) in {}: {}",
-            cfg.icon(ico::FOLDER),
+            "{} {} {} file(s) in {}: {}",
+            cfg.step(), cfg.icon(ico::FOLDER),
             st.files.len(),
             base,
             parts.join(", ")
         );
     }
     for c in &st.cmds {
-        println!("==> {} Command  {c}", cfg.icon(ico::LINK));
+        println!("{} {} Command  {c}", cfg.step(), cfg.icon(ico::LINK));
     }
     if st.links.is_empty() && st.files.is_empty() {
         println!("\n{} Nothing to install: the package contains no regular files.", cfg.icon(ico::INFO));

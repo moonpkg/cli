@@ -26,7 +26,7 @@ USAGE:
     moon doctor [--fix]                    find apps you deleted by hand, repair them
     moon export <name> [dir]               copy an installed app as a portable bundle
     moon history [-n N] [--clear]          what was installed, and when
-    moon config                            settings (icons, Nerd Font detection)
+    moon config [--check]                  settings (icons, Nerd Font, update)
     moon help | --version
 
 INSTALL OPTIONS:
@@ -49,6 +49,14 @@ EXPORT OPTIONS:
 UNDO / CONFIG OPTIONS:
     --yes, -y           don't ask for confirmation
     --icons <mode>      auto | always | never   (default: auto = if Nerd Font found)
+    --check             only report the newest release, install nothing
+    --update            update without opening the menu
+    --script <path|url> use another installer instead of the official one
+
+UPDATE:
+    moon config                 pick 2: fetch docs/scripts/install.sh into the tmp dir and
+                                run it - moon closes itself first, so the new binary can
+                                take over ~/.local/bin/moon
 
 SUPPORTED: .tar.gz .tar.xz .tar.bz2 .tar.zst .tgz .tar .zip .7z .AppImage .deb,
            or a bare executable. Apps live in ~/.local/share/moon/apps/<name>,
@@ -92,7 +100,7 @@ pub fn run() -> Res<()> {
             println!("{} moon {VERSION}", cfg.icon(ico::MOON));
             Ok(())
         }
-        "config" | "settings" | "prefs" => cmd_config(&mut cfg, icons_set),
+        "config" | "settings" | "prefs" => cmd_config(&mut cfg, icons_set, &args[1..]),
         "inspect" | "show" | "what" => {
             let d = Dirs::new()?;
             match args[1..].iter().find(|a| !a.starts_with('-')) {

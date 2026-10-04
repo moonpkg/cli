@@ -125,7 +125,7 @@ pub fn download(url: &str, work: &Path) -> Res<PathBuf> {
         .unwrap_or("download")
         .to_string();
     let out = work.join(&fname);
-    println!("==> {} Downloading {url}", Config::load().icon(ico::DOWNLOAD));
+    println!("{} {} Downloading {url}", Config::load().step(), Config::load().icon(ico::DOWNLOAD));
     let os = OsStr::new;
     if try_run("curl", &[os("-fL"), os("--progress-bar"), os("-o"), out.as_os_str(), os(url)])?
         || try_run("wget", &[os("-O"), out.as_os_str(), os(url)])?

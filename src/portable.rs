@@ -165,10 +165,10 @@ pub fn cmd_unexport(d: &Dirs, cfg: &Config, name: &str, root: Option<&Path>, yes
         return Ok(());
     }
     fs::remove_dir_all(&dir).map_err(|e| format!("cannot remove {}: {e}", dir.display()))?;
-    println!("==> {} Removed {}", cfg.icon(ico::TRASH), dir.display());
+    println!("{} {} Removed {}", cfg.step(), cfg.icon(ico::TRASH), dir.display());
     if let Some(m) = read_manifest(d, name) {
         if m.dir.as_deref() == Some(dir.as_path()) {
-            println!("==> {} Forgetting the manifest for {name}", cfg.icon(ico::TRASH));
+            println!("{} {} Forgetting the manifest for {name}", cfg.step(), cfg.icon(ico::TRASH));
             let _ = remove_app(d, name, true);
         }
     }

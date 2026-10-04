@@ -197,14 +197,14 @@ pub fn write_desktop(
 pub fn update_desktop_db(d: &Dirs) {
     let cfg = Config::load();
     match Command::new("update-desktop-database").arg(&d.desktop).status() {
-        Ok(s) if s.success() => println!("==> {} Desktop database updated", cfg.icon(ico::CHECK)),
+        Ok(s) if s.success() => println!("{} {} Desktop database updated", cfg.step(), cfg.icon(ico::CHECK)),
         Ok(_) => eprintln!(
             "warning: {} update-desktop-database failed (menu may need a relogin)",
             cfg.icon(ico::WARN)
         ),
         Err(_) => println!(
-            "==> {} update-desktop-database not found (install desktop-file-utils); most menus refresh on their own",
-            cfg.icon(ico::INFO)
+            "{} {} update-desktop-database not found (install desktop-file-utils); most menus refresh on their own",
+            cfg.step(), cfg.icon(ico::INFO)
         ),
     }
 }

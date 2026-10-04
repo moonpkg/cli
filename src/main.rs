@@ -14,6 +14,7 @@ mod portable;
 mod probe;
 mod state;
 mod tui;
+mod update;
 mod util;
 
 use std::process::exit;

@@ -51,7 +51,7 @@ pub fn resolve_conflict(
             },
             _ => "reinstall",
         };
-        println!("==> {} Replacing existing install ({rel})", cfg.icon(ico::REFRESH));
+        println!("{} {} Replacing existing install ({rel})", cfg.step(), cfg.icon(ico::REFRESH));
         return Ok(ConflictChoice::Replace);
     }
 
@@ -231,7 +231,7 @@ pub fn remove_app(d: &Dirs, name: &str, quiet: bool) -> Res<()> {
     let _ = fs::remove_dir_all(&dir);
     let _ = fs::remove_file(manifest_path(d, name));
     if !quiet {
-        println!("==> {} Removed {name}", Config::load().icon(ico::TRASH));
+        println!("{} {} Removed {name}", Config::load().step(), Config::load().icon(ico::TRASH));
     }
     Ok(())
 }
@@ -263,7 +263,7 @@ pub fn install(d: &Dirs, o: &mut InstallOpts) -> Res<()> {
         None => sanitize(&guess_name(&fname))?,
     };
     let cfg_now = Config::load();
-    println!("==> {} Installing '{name}' from {}", cfg_now.icon(ico::PACKAGE), fname);
+    println!("{} {} Installing '{name}' from {}", cfg_now.step(), cfg_now.icon(ico::PACKAGE), fname);
 
     let stage = work.join("stage");
     fs::create_dir_all(&stage).map_err(|e| e.to_string())?;
@@ -291,14 +291,14 @@ pub fn install(d: &Dirs, o: &mut InstallOpts) -> Res<()> {
         }
     }
     if final_dir.exists() || manifest_path(d, &name).exists() {
-        println!("==> {} Replacing existing install", cfg_now.icon(ico::REFRESH));
+        println!("{} {} Replacing existing install", cfg_now.step(), cfg_now.icon(ico::REFRESH));
         remove_app(d, &name, true)?;
     }
     if let Some(p) = &o.portable {
         fs::create_dir_all(p).map_err(|e| format!("cannot create {}: {e}", p.display()))?;
         println!(
-            "==> {} Portable install, everything lives in {}",
-            cfg_now.icon(ico::DRIVE),
+            "{} {} Portable install, everything lives in {}",
+            cfg_now.step(), cfg_now.icon(ico::DRIVE),
             final_dir.display()
         );
     }
@@ -370,7 +370,7 @@ fn finish_install(d: &Dirs, o: &InstallOpts, name: &str, dir: &Path, src_file_na
         let l = d.bin.join(ln);
         let _ = fs::remove_file(&l);
         symlink(target, &l).map_err(|e| format!("cannot link {}: {e}", l.display()))?;
-        println!("==> {} Linked  {}  ->  {}", Config::load().icon(ico::LINK), l.display(), target.display());
+        println!("{} {} Linked  {}  ->  {}", Config::load().step(), Config::load().icon(ico::LINK), l.display(), target.display());
         made.push(l);
         targets.push(target.clone());
     }
@@ -381,16 +381,16 @@ fn finish_install(d: &Dirs, o: &InstallOpts, name: &str, dir: &Path, src_file_na
         let is_appimage = main.extension().map_or(false, |e| e.eq_ignore_ascii_case("appimage"));
         desktop = write_desktop(d, name, o.name.as_deref(), &files, &main, o.force_desktop || is_appimage)?;
         match &desktop {
-            Some(p) => println!("==> {} Menu entry {}", cfg.icon(ico::LIST), p.display()),
+            Some(p) => println!("{} {} Menu entry {}", cfg.step(), cfg.icon(ico::LIST), p.display()),
             None => println!(
-                "==> {} No icon or .desktop file in the archive, looks like a CLI tool: skipped menu entry (use --desktop to force)",
-                cfg.icon(ico::INFO)
+                "{} {} No icon or .desktop file in the archive, looks like a CLI tool: skipped menu entry (use --desktop to force)",
+                cfg.step(), cfg.icon(ico::INFO)
             ),
         }
         if portable.is_some() {
             let bundle = bundle_desktop(portable, name, o.name.as_deref(), &main, o.force_desktop || is_appimage)?;
             if let Some(p) = &bundle {
-                println!("==> {} Portable bundle {}", cfg.icon(ico::DRIVE), p.display());
+                println!("{} {} Portable bundle {}", cfg.step(), cfg.icon(ico::DRIVE), p.display());
             }
         }
     }
