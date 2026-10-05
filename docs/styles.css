@@ -355,6 +355,149 @@ footer {
   }
 }
 
+/* how-to-bundle page */
+nav a.here {
+  color: var(--fg);
+  font-weight: 700;
+}
+.doclayout {
+  display: grid;
+  grid-template-columns: 210px minmax(0, 1fr);
+  gap: clamp(20px, 4vw, 44px);
+  align-items: start;
+}
+@media (max-width: 820px) {
+  .doclayout {
+    grid-template-columns: 1fr;
+  }
+  .toc {
+    position: static;
+  }
+}
+.toc {
+  position: sticky;
+  top: 24px;
+  border: 1px solid var(--line);
+  padding: 14px 16px;
+  font-size: 13.5px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.toc b {
+  color: var(--dim);
+  font-weight: 500;
+  margin-bottom: 6px;
+}
+.toc a {
+  color: var(--dim);
+  text-decoration: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.toc a:hover {
+  color: var(--fg);
+}
+.toc a.l3 {
+  padding-left: 12px;
+}
+.toc a.l4,
+.toc a.l5 {
+  padding-left: 24px;
+}
+.doc {
+  max-width: 74ch;
+}
+.doc h2 {
+  font-size: clamp(19px, 3vw, 24px);
+  margin: 44px 0 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+.doc h2:first-child {
+  margin-top: 0;
+  border-top: 0;
+}
+.doc h3 {
+  font-size: 16.5px;
+  font-weight: 700;
+  margin: 28px 0 8px;
+}
+.doc h4 {
+  font-size: 15px;
+  color: var(--dim);
+  font-weight: 700;
+  margin: 22px 0 6px;
+}
+.doc .anchor {
+  text-decoration: none;
+}
+.doc .anchor:hover::after {
+  content: " #";
+  color: var(--dim);
+}
+.doc ul,
+.doc ol {
+  padding-left: 22px;
+  margin: 0 0 16px;
+}
+.doc li {
+  margin-bottom: 6px;
+}
+.doc li code {
+  white-space: nowrap;
+}
+.doc hr {
+  border: 0;
+  border-top: 1px solid var(--line);
+  margin: 32px 0;
+}
+.doc blockquote {
+  border-left: 2px solid var(--line);
+  margin: 0 0 16px;
+  padding: 2px 0 2px 16px;
+  color: var(--dim);
+}
+.doc .tablewrap table td:first-child {
+  white-space: nowrap;
+  font-weight: 500;
+}
+.doc .tablewrap th {
+  white-space: nowrap;
+}
+.prewrap {
+  position: relative;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  margin: 0 0 18px;
+}
+.prewrap pre {
+  margin: 0;
+  padding: 16px 18px;
+  overflow-x: auto;
+  font: inherit;
+  font-size: 13.5px;
+  line-height: 1.7;
+}
+.prewrap pre code {
+  background: none;
+  border: 0;
+  padding: 0;
+  font-size: inherit;
+}
+.prewrap > .copy {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+.prewrap:hover > .copy,
+.prewrap > .copy:focus-visible {
+  opacity: 1;
+}
+
 .logo img {
   filter: invert(0);
 }

@@ -27,7 +27,10 @@ pub fn manifest_path(d: &Dirs, name: &str) -> PathBuf {
 }
 
 pub fn read_manifest(d: &Dirs, name: &str) -> Option<Manifest> {
-    let text = fs::read_to_string(manifest_path(d, name)).ok()?;
+    Some(parse_manifest(&fs::read_to_string(manifest_path(d, name)).ok()?))
+}
+
+pub fn parse_manifest(text: &str) -> Manifest {
     let mut m = Manifest::default();
     for l in text.lines() {
         let Some((k, v)) = l.split_once('=') else { continue };
@@ -48,10 +51,14 @@ pub fn read_manifest(d: &Dirs, name: &str) -> Option<Manifest> {
             _ => {}
         }
     }
-    Some(m)
+    m
 }
 
 pub fn write_manifest(d: &Dirs, name: &str, m: &Manifest) -> Res<()> {
+    fs::write(manifest_path(d, name), render_manifest(m)).map_err(|e| format!("cannot write manifest: {e}"))
+}
+
+pub fn render_manifest(m: &Manifest) -> String {
     let mut s = String::new();
     if let Some(p) = &m.dir {
         s += &format!("dir={}\n", p.display());
@@ -92,7 +99,7 @@ pub fn write_manifest(d: &Dirs, name: &str, m: &Manifest) -> Res<()> {
     if let Some(p) = &m.desktop {
         s += &format!("desktop={}\n", p.display());
     }
-    fs::write(manifest_path(d, name), s).map_err(|e| format!("cannot write manifest: {e}"))
+    s
 }
 
 pub fn moon_owned_link(p: &Path, d: &Dirs) -> bool {

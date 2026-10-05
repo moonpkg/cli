@@ -23,7 +23,7 @@
     <img src="assets/logo.webp" style="width:20px;height:20px;">moon
   </a>
   <nav>
-    <a href="#install">Install</a><a href="#how">How it works</a><a href="#commands">Commands</a><a href="#doctor">Doctor</a><a href="#portable">Portable</a>
+    <a href="#install">Install</a><a href="#how">How it works</a><a href="#commands">Commands</a><a href="#bundles">Bundles</a><a href="#doctor">Doctor</a><a href="#portable">Portable</a>
     <button class="theme" id="theme" aria-label="Toggle light and dark">light/dark</button>
     <button class="btn" onclick="document.getElementById('install').scrollIntoView({behavior:'smooth'})">Install</button>
   </nav>
@@ -50,6 +50,7 @@
       <button class="tab" role="tab" aria-selected="true" data-cmd="moon install app-1.2.3-linux-x64.tar.xz">archive</button>
       <button class="tab" role="tab" aria-selected="false" data-cmd="moon install SomeApp.AppImage">appimage</button>
       <button class="tab" role="tab" aria-selected="false" data-cmd="moon install nowly-host.deb">deb</button>
+      <button class="tab" role="tab" aria-selected="false" data-cmd="moon install SomeApp.moon">bundle</button>
       <button class="tab" role="tab" aria-selected="false" data-cmd="moon install https://example.com/app.tar.gz">url</button>
       <button class="tab" role="tab" aria-selected="false" data-cmd="moon">picker</button>
     </div>
@@ -83,6 +84,7 @@
   <div class="tablewrap"><table>
     <tr><th>command</th><th>what it does</th></tr>
     <tr><td>moon install &lt;file|url&gt;</td><td>Install or upgrade an app</td></tr>
+    <tr><td>moon bundle &lt;name|folder&gt;</td><td>Pack an app into a single .moon file</td></tr>
     <tr><td>moon</td><td>Pick a file in the current directory</td></tr>
     <tr><td>moon inspect &lt;file|url|last&gt;</td><td>Show what installing would do, change nothing</td></tr>
     <tr><td>moon list</td><td>List installed apps</td></tr>
@@ -94,7 +96,16 @@
     <tr><td>moon history [-n N]</td><td>Show what was installed, and when</td></tr>
     <tr><td>moon config</td><td>Change settings</td></tr>
   </table></div>
-  <div class="chips" aria-label="Supported inputs"><span>.tar.gz</span><span>.tar.xz</span><span>.tar.bz2</span><span>.tar.zst</span><span>.zip</span><span>.7z</span><span>.AppImage</span><span>.deb</span><span>http(s)://</span></div>
+  <div class="chips" aria-label="Supported inputs"><span>.tar.gz</span><span>.tar.xz</span><span>.tar.bz2</span><span>.tar.zst</span><span>.zip</span><span>.7z</span><span>.AppImage</span><span>.deb</span><span>.moon</span><span>http(s)://</span></div>
+</section>
+
+<section id="bundles" class="pad">
+  <h2>Ship an app as one file</h2>
+  <p class="dim">A <code>.moon</code> bundle is a <code>tar.gz</code> holding the app, its manifest, its icon and its menu entry. No server, no account: copy the file and install it anywhere.</p>
+  <div class="box"><pre class="out"><span class="dim">$ </span>moon bundle someapp            <span class="dim"># pack an installed app into ./someapp.moon</span>
+<span class="dim">$ </span>moon install someapp.moon      <span class="dim"># on any other machine</span>
+<span class="dim">$ </span>tar tzf someapp.moon          <span class="dim"># it is just a tar.gz</span></pre></div>
+  <p class="dim" style="margin-top:14px"><a href="how-to-bundle/">Read the guide: how to build a bundle</a></p>
 </section>
 
 <section id="doctor" class="pad">
@@ -137,7 +148,7 @@
 
 <footer>
   <span>moon, by @noxygalaxy</span>
-  <span><a href="https://github.com/moonpkg/cli">GitHub</a> &nbsp; <a href="#">Docs</a> &nbsp; <a href="#top">Back to top</a></span>
+  <span><a href="https://github.com/moonpkg/cli">GitHub</a> &nbsp; <a href="how-to-bundle/">Docs</a> &nbsp; <a href="#top">Back to top</a></span>
 </footer>
 </div>
 

@@ -105,7 +105,7 @@ fn resolve_icon(files: &[PathBuf], name: &str, hint: Option<&str>) -> Option<Str
     best_icon(imgs.iter().copied().filter(|p| stem_of(p).contains(&n)).collect())
 }
 
-fn exec_quote(p: &Path) -> String {
+pub fn exec_quote(p: &Path) -> String {
     let s = p.to_string_lossy();
     if s.chars().any(|c| " \t\n\"'\\><~|&;$*?#()`%".contains(c)) {
         let e = s

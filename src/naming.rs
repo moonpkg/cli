@@ -7,7 +7,7 @@ pub const ARCHIVE_EXTS: &[&str] = &[
 
 const NAME_EXTS: &[&str] = &[
     ".tar.gz", ".tar.xz", ".tar.bz2", ".tar.zst", ".tar.lz", ".tar.lzma", ".tar.z", ".tgz",
-    ".txz", ".tbz2", ".tbz", ".tzst", ".tar", ".zip", ".7z", ".appimage", ".deb",
+    ".txz", ".tbz2", ".tbz", ".tzst", ".tar", ".zip", ".7z", ".appimage", ".deb", ".moon",
 ];
 
 const NOISE_TOKENS: &[&str] = &[

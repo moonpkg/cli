@@ -1,4 +1,5 @@
 mod archive;
+mod bundle;
 mod cli;
 mod config;
 mod deb;

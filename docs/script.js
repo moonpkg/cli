@@ -4,62 +4,68 @@
     var t = localStorage.getItem("moon-theme");
     if (t) root.setAttribute("data-theme", t);
   } catch (e) {}
-  document.getElementById("theme").addEventListener("click", function () {
-    var dark = root.getAttribute("data-theme")
-      ? root.getAttribute("data-theme") === "dark"
-      : !matchMedia("(prefers-color-scheme: light)").matches;
-    var next = dark ? "light" : "dark";
-    root.setAttribute("data-theme", next);
-    try {
-      localStorage.setItem("moon-theme", next);
-    } catch (e) {}
-  });
+  var theme = document.getElementById("theme");
+  if (theme)
+    theme.addEventListener("click", function () {
+      var dark = root.getAttribute("data-theme")
+        ? root.getAttribute("data-theme") === "dark"
+        : !matchMedia("(prefers-color-scheme: light)").matches;
+      var next = dark ? "light" : "dark";
+      root.setAttribute("data-theme", next);
+      try {
+        localStorage.setItem("moon-theme", next);
+      } catch (e) {}
+    });
 
-  var installCmd = document.getElementById("installcmd").textContent;
+  var installCmd = document.getElementById("installcmd");
   var installCopy = document.getElementById("copyinstall");
-  installCopy.addEventListener("click", function () {
-    function done() {
-      installCopy.textContent = "copied";
-      setTimeout(function () {
-        installCopy.textContent = "copy";
-      }, 1400);
-    }
-    try {
-      navigator.clipboard.writeText(installCmd).then(done, done);
-    } catch (e) {
-      done();
-    }
-  });
+  if (installCmd && installCopy)
+    installCopy.addEventListener("click", function () {
+      function done() {
+        installCopy.textContent = "copied";
+        setTimeout(function () {
+          installCopy.textContent = "copy";
+        }, 1400);
+      }
+      try {
+        navigator.clipboard.writeText(installCmd.textContent).then(done, done);
+      } catch (e) {
+        done();
+      }
+    });
 
   var cmdText = document.getElementById("cmdtext"),
-    current = cmdText.textContent;
-  document.querySelectorAll(".tab").forEach(function (tab) {
-    tab.addEventListener("click", function () {
-      document.querySelectorAll(".tab").forEach(function (x) {
-        x.setAttribute("aria-selected", "false");
+    current = cmdText && cmdText.textContent;
+  if (cmdText)
+    document.querySelectorAll(".tab").forEach(function (tab) {
+      tab.addEventListener("click", function () {
+        document.querySelectorAll(".tab").forEach(function (x) {
+          x.setAttribute("aria-selected", "false");
+        });
+        tab.setAttribute("aria-selected", "true");
+        current = tab.dataset.cmd;
+        cmdText.textContent = current;
       });
-      tab.setAttribute("aria-selected", "true");
-      current = tab.dataset.cmd;
-      cmdText.textContent = current;
     });
-  });
   var copy = document.getElementById("copy");
-  copy.addEventListener("click", function () {
-    function done() {
-      copy.textContent = "copied";
-      setTimeout(function () {
-        copy.textContent = "copy";
-      }, 1400);
-    }
-    try {
-      navigator.clipboard.writeText(current).then(done, done);
-    } catch (e) {
-      done();
-    }
-  });
+  if (cmdText && copy)
+    copy.addEventListener("click", function () {
+      function done() {
+        copy.textContent = "copied";
+        setTimeout(function () {
+          copy.textContent = "copy";
+        }, 1400);
+      }
+      try {
+        navigator.clipboard.writeText(current).then(done, done);
+      } catch (e) {
+        done();
+      }
+    });
 
   var term = document.getElementById("term"),
     timer;
+  if (!term) return;
   var lines = [
     "extracted to ~/.local/share/moon/apps/app",
     "linked app to ~/.local/bin/app",

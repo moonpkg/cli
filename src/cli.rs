@@ -2,6 +2,7 @@ use std::env;
 use std::path::PathBuf;
 
 use crate::config::{Config, IconMode, cmd_config, ico};
+use crate::bundle::cmd_bundle;
 use crate::desktop::update_desktop_db;
 use crate::doctor::cmd_doctor;
 use crate::history::cmd_history;
@@ -19,6 +20,8 @@ fn usage() {
 
 USAGE:
     moon install <archive|url|deb> [opts]  install or upgrade an app
+    moon bundle <name|folder> [out.moon]    pack an installed app, or a bundle
+                                           folder, into one .moon file
     moon inspect <archive|url|deb|last>    show what installing would do
     moon list                              show installed apps
     moon remove <name>...                  uninstall (binaries, menu entry, files)
@@ -46,6 +49,9 @@ INSTALL OPTIONS:
 EXPORT OPTIONS:
     --force             overwrite an existing bundle
 
+BUNDLE OPTIONS:
+    --force             overwrite the .moon file if it is there already
+
 UNDO / CONFIG OPTIONS:
     --yes, -y           don't ask for confirmation
     --icons <mode>      auto | always | never   (default: auto = if Nerd Font found)
@@ -58,7 +64,7 @@ UPDATE:
                                 run it - moon closes itself first, so the new binary can
                                 take over ~/.local/bin/moon
 
-SUPPORTED: .tar.gz .tar.xz .tar.bz2 .tar.zst .tgz .tar .zip .7z .AppImage .deb,
+SUPPORTED: .tar.gz .tar.xz .tar.bz2 .tar.zst .tgz .tar .zip .7z .AppImage .deb .moon,
            or a bare executable. Apps live in ~/.local/share/moon/apps/<name>,
            commands are symlinked into ~/.local/bin."
     );
@@ -219,6 +225,16 @@ pub fn run() -> Res<()> {
                 args.iter().any(|a| a == "--fix"),
                 args.iter().any(|a| a == "-y" || a == "--yes"),
             )
+        }
+        "bundle" | "pack" => {
+            let pos: Vec<&String> = args[1..].iter().filter(|a| !a.starts_with('-')).collect();
+            let Some(name) = pos.first().map(|s| s.as_str()) else {
+                return Err("usage: moon bundle <name|folder> [out.moon]".into());
+            };
+            let d = Dirs::new()?;
+            let force = args.iter().any(|a| a == "--force" || a == "-f");
+            let out = pos.get(1).map(|p| PathBuf::from(p.as_str()));
+            cmd_bundle(&d, &cfg, name, out.as_deref(), force)
         }
         "export" | "unexport" => {
             let pos: Vec<&String> = args[1..].iter().filter(|a| !a.starts_with('-')).collect();

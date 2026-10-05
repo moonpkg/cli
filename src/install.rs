@@ -258,6 +258,10 @@ pub fn install(d: &Dirs, o: &mut InstallOpts) -> Res<()> {
         return install_deb(d, o, &src, &work, &fname);
     }
 
+    if crate::bundle::is_bundle_name(&fname) {
+        return crate::bundle::install_bundle(d, o, &src, &work, &fname);
+    }
+
     let name = match &o.name {
         Some(n) => sanitize(n)?,
         None => sanitize(&guess_name(&fname))?,

@@ -18,7 +18,7 @@ It will:
 
 |  | command | what it does |
 |:--:|---|---|
-| <img src="docs/icons/PACKAGE.svg" width="16" alt="install"> | `moon install <file\|url>` | install or upgrade an app |
+| <img src="docs/icons/PACKAGE.svg" width="16" alt="install"> | `moon install <file\|url\|bundle>` | install or upgrade an app |
 | <img src="docs/icons/SEARCH.svg" width="16" alt="picker"> | `moon` | interactive picker over the current directory |
 | <img src="docs/icons/EXAM.svg" width="16" alt="inspect"> | `moon inspect <file\|url\|last>` | show what installing would do, change nothing |
 | <img src="docs/icons/FILE.svg" width="16" alt="list"> | `moon list` | installed apps |
@@ -26,6 +26,7 @@ It will:
 | <img src="docs/icons/UNDO.svg" width="16" alt="undo"> | `moon undo [name]` | remove the app installed last (asks first) |
 | <img src="docs/icons/WRENCH.svg" width="16" alt="doctor"> | `moon doctor [--fix]` | find broken entries and repair them |
 | <img src="docs/icons/DRIVE.svg" width="16" alt="export"> | `moon export <name> [dir]` | copy an installed app as a portable bundle |
+| <img src="docs/icons/FOLDER.svg" width="16" alt="bundle"> | `moon bundle <name\|folder> [out.moon]` | pack an app, or a bundle folder, into one `.moon` file |
 | <img src="docs/icons/TRASH.svg" width="16" alt="unexport"> | `moon unexport <name>` | delete a portable bundle |
 | <img src="docs/icons/CLOCK.svg" width="16" alt="history"> | `moon history [-n N] [--clear]` | what was installed, and when |
 | <img src="docs/icons/COG.svg" width="16" alt="config"> | `moon config` | settings |
@@ -95,6 +96,31 @@ moon unexport someapp               # delete the bundle
 
 The bundle carries the app, its menu entry and its icon, with absolute paths pointing inside the bundle. `moon doctor` flags a portable app whose directory has gone missing, which is what an unplugged USB stick looks like.
 
+### <img src="docs/icons/PACKAGE.svg" width="18" alt="" valign="-4"> `.moon` bundles
+
+A `.moon` bundle is one file that holds a whole app: the program, its metadata, its icon and its menu entry. It is a plain `tar.gz`, so `tar xf SomeApp.moon` still works, and there is no server involved on either end.
+
+```
+moon bundle someapp        # an installed app  -> ./someapp.moon
+moon bundle ytkew-moon     # a bundle folder  -> ./ytkew-moon.moon
+moon install someapp.moon  # on any machine, yours included
+```
+
+A bundle folder is a `.manifest` plus `app/`, and optionally `desktop/` and `icon/`:
+
+```
+ytkew-moon/
+├── ytkew.manifest
+├── app/
+│   └── ytkew
+├── desktop/
+│   └── ytkew.desktop
+└── icon/
+    └── ytkew.svg
+```
+
+The manifest is moon's own `key=value` format with paths relative to the bundle: `dir`, `main`, `version`, `desktop`, and `link`/`to` pairs for each command. On install moon rewrites the bundled menu entry to the new machine's paths, links the commands into `~/.local/bin`, and saves a manifest with the real ones. **[How to bundle](HOW_TO_BUNDLE.md)** has the whole guide.
+
 ### <img src="docs/icons/WRENCH.svg" width="18" alt="" valign="-4"> doctor
 
 ```
@@ -130,7 +156,7 @@ All 26 glyphs are single codepoints in the Font Awesome, Octicons and Devicons r
 
 ## Supported inputs
 
-`.tar.gz` `.tar.xz` `.tar.bz2` `.tar.zst` `.tgz` `.tar` `.zip` `.7z` `.AppImage` `.deb`, bare executables, and `http(s)://` URLs.
+`.tar.gz` `.tar.xz` `.tar.bz2` `.tar.zst` `.tgz` `.tar` `.zip` `.7z` `.AppImage` `.deb` `.moon`, bare executables, and `http(s)://` URLs.
 
 `moon install` with no arguments opens a picker over the current directory: arrows or `hjkl` to move, `enter` to install, `q` to quit.
 
@@ -145,6 +171,8 @@ src/
   inspect.rs     the dry-run report
   doctor.rs      broken-entry detection and repair
   portable.rs    portable installs and bundles
+  bundle.rs      .moon bundles: pack and install one file
+  update.rs      self-update through the release install script
   archive/       download and unpack
   deb/           ar, control file, install plan, rollback
   desktop.rs     .desktop and icon handling
@@ -158,6 +186,7 @@ src/
   util.rs        text and size helpers
 docs/
   icons/         one SVG per glyph, plus the generator that cuts them
+HOW_TO_BUNDLE.md  the .moon bundle guide, also served at /how-to-bundle
 ```
 
 ## Uninstall moon

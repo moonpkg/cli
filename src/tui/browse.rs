@@ -123,7 +123,7 @@ fn classify(name: &str, path: &Path) -> Kind {
         return Kind::Dir;
     }
 
-    if l.ends_with(".deb") || l.ends_with(".appimage") {
+    if l.ends_with(".deb") || l.ends_with(".appimage") || crate::bundle::is_bundle_name(&l) {
         return Kind::Supported;
     }
 

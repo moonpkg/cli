@@ -5,6 +5,7 @@ use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use crate::bundle::{bundle_manifest, icon_in};
 use crate::config::{Config, ico};
 use crate::fsutil::{desktop_and_icon, is_exec_file, pick_main, tree_size, walk};
 use crate::naming::{capitalize, guess_arch, guess_name, guess_version, is_noise, name_words, sanitize};
@@ -627,6 +628,8 @@ pub fn cmd_inspect(d: &Dirs, cfg: &Config, target: &str) -> Res<()> {
     let root_mode = env::args().any(|a| a == "--root");
     let r = if is_deb(&src, &lname) {
         report_deb(d, &src, &work, &lname, root_mode)?
+    } else if crate::bundle::is_bundle_name(&lname) {
+        report_bundle(d, &src, &work)?
     } else if is_archive_name(&lname) || is_compressed(&head_bytes(&src)) {
         report_archive(d, &src, &lname, &work)?
     } else {
@@ -634,6 +637,92 @@ pub fn cmd_inspect(d: &Dirs, cfg: &Config, target: &str) -> Res<()> {
     };
     print_report(cfg, &r);
     Ok(())
+}
+
+fn report_bundle(d: &Dirs, src: &Path, work: &Path) -> Res<Report> {
+    let stage = work.join("bundle");
+    fs::create_dir_all(&stage).map_err(|e| e.to_string())?;
+    extract(src, "app.moon", &stage, "bundle")?;
+    let (name, bm) = bundle_manifest(&stage)?;
+    let app = stage.join("app");
+    if !app.is_dir() {
+        return Err("not a moon bundle: no app/ directory inside".into());
+    }
+    let files = walk(&app, 8);
+    let size = tree_size(&app);
+    let main_rel = bm
+        .main
+        .as_ref()
+        .and_then(|p| p.strip_prefix("app").ok())
+        .map(|p| p.to_path_buf())
+        .or_else(|| pick_main(&app, &files, &name));
+    let main = main_rel.as_ref().map(|r| app.join(r));
+    let fname = src.file_name().and_then(|s| s.to_str()).unwrap_or("app.moon");
+    let version = bm.version.clone().filter(|v| !v.is_empty()).or_else(|| guess_version(fname));
+    let app_dir = d.apps.join(&name);
+
+    let cmds: Vec<String> = bm
+        .links
+        .iter()
+        .map(|l| l.file_name().unwrap_or_default().to_string_lossy().into_owned())
+        .collect();
+    let mut creates: Vec<String> = vec![format!("{}/", app_dir.display())];
+    if !cmds.is_empty() {
+        creates.push(format!("{}/  (command links: {})", d.bin.display(), cmds.join(", ")));
+    }
+    if bm.desktop.is_some() {
+        creates.push(format!("{}/{}.desktop  (menu entry)", d.desktop.display(), name));
+    }
+    let existing = if manifest_path(d, &name).exists() {
+        Some(format!("{name} is already installed (would be replaced)"))
+    } else {
+        None
+    };
+
+    let file_arch = main
+        .as_ref()
+        .and_then(|m| fs::File::open(m).ok().and_then(|mut f| {
+            let mut b = [0u8; 20];
+            f.read(&mut b).ok().map(|n| elf_arch(&b[..n]))
+        }))
+        .flatten();
+    let host = uname_m();
+    let (arch, arch_ok) = match file_arch {
+        Some(a) if a == host => (format!("{a} (this machine)"), true),
+        Some(a) => (format!("{a} - not this machine ({host})"), false),
+        None => (format!("unknown - assuming {host}"), true),
+    };
+
+    Ok(Report {
+        title: capitalize(&name),
+        kind: "Moon bundle".into(),
+        format: "single file, carries its own app, icon and menu entry".into(),
+        label: format!("Bundle: {} ({} file(s), {})", name, files.len(), human_size(size)),
+        name: name.clone(),
+        display: name.clone(),
+        version,
+        arch,
+        arch_ok,
+        main: main_rel.as_ref().map(|r| app_dir.join(r)),
+        files: files.len(),
+        size,
+        desktop: bm.desktop.is_some(),
+        icon: icon_in(&stage.join("icon")).is_some(),
+        libs: None,
+        checks_title: "Checks".into(),
+        name_label: "Would install as".into(),
+        from_name: Some(format!("{name}.moon")),
+        notes: vec![
+            "a .moon bundle is a plain tar.gz: `tar xf` opens it, nothing else is needed".into(),
+            "the menu entry and icon inside are rewritten to this machine's paths".into(),
+            format!("no server: the file itself is the whole package ({})", human_size(size)),
+        ],
+        install_to: vec![format!("{}/", app_dir.display())],
+        app_dir,
+        creates,
+        relocate: Vec::new(),
+        existing,
+    })
 }
 
 fn inspect_last(d: &Dirs, cfg: &Config) -> Res<()> {

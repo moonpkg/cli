@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>How to bundle: moon</title>
+<meta name="description" content="A .moon bundle is one tar.gz holding an app, its icon and its menu entry. Make one with moon bundle, install it anywhere with moon install.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+<div class="wrap">
+<header>
+  <a class="logo" href="../index.html" aria-label="moon home">
+    <img src="../assets/logo.webp" style="width:20px;height:20px;">moon
+  </a>
+  <nav>
+    <a href="../index.html#install">Install</a><a href="../index.html#how">How it works</a><a href="../index.html#commands">Commands</a><a href="../index.html#doctor">Doctor</a><a href="../index.html#portable">Portable</a><a class="here" href="index.html" aria-current="page">Bundles</a>
+    <button class="theme" id="theme" aria-label="Toggle light and dark">light/dark</button>
+    <a class="btn" href="../index.html#install">Install</a>
+  </nav>
+</header>
+
+<section id="top" class="pad">
+  <h1>Bundles: one file<br>for a whole app.</h1>
+  <p class="dim">A <code>.moon</code> file is a <code>tar.gz</code> holding a program, its metadata, its icon and its menu entry. No server, no account. This page is the guide, straight from <code>HOW_TO_BUNDLE.md</code> in the repository.</p>
+  <div id="status" class="dim">Loading the guide&hellip;</div>
+</section>
+
+<section class="pad doclayout">
+  <aside class="toc" id="toc" aria-label="On this page"></aside>
+  <article class="doc" id="doc"></article>
+</section>
+
+<footer>
+  <span>moon, by @noxygalaxy</span>
+  <span><a href="https://github.com/moonpkg/cli">GitHub</a> &nbsp; <a href="https://github.com/moonpkg/cli/blob/main/HOW_TO_BUNDLE.md">HOW_TO_BUNDLE.md</a> &nbsp; <a href="../index.html">Home</a> &nbsp; <a href="#top">Back to top</a></span>
+</footer>
+</div>
+
+<script src="../script.js"></script>
+<script src="../markdown.js"></script>
+<script>
+(function () {
+  var sources = [
+    "../../HOW_TO_BUNDLE.md",
+    "https://raw.githubusercontent.com/moonpkg/cli/main/HOW_TO_BUNDLE.md"
+  ];
+  var status = document.getElementById("status");
+  var doc = document.getElementById("doc");
+  var toc = document.getElementById("toc");
+
+  function fail() {
+    status.innerHTML =
+      'The guide could not be loaded. Read it on GitHub: ' +
+      '<a href="https://github.com/moonpkg/cli/blob/main/HOW_TO_BUNDLE.md">HOW_TO_BUNDLE.md</a>';
+    status.classList.remove("dim");
+  }
+
+  function show(text) {
+    var doc = window.moonMarkdown.render(text);
+    status.remove();
+    document.getElementById("doc").innerHTML = doc.html;
+    window.moonMarkdown.wire(document);
+    if (doc.toc.length) {
+      toc.innerHTML =
+        '<b>On this page</b>' +
+        doc.toc
+          .map(function (h) {
+            return '<a class="l' + h.level + '" href="#' + h.id + '">' + h.text + "</a>";
+          })
+          .join("");
+    } else {
+      toc.remove();
+    }
+  }
+
+  (function next(i) {
+    if (i >= sources.length) return fail();
+    fetch(sources[i])
+      .then(function (r) {
+        if (!r.ok) throw new Error(r.status);
+        return r.text();
+      })
+      .then(show)
+      .catch(function () {
+        next(i + 1);
+      });
+  })(0);
+})();
+</script>
+</body>
+</html>
