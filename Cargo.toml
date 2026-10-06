@@ -3,6 +3,23 @@ name = "moon"
 version = "0.1.1"
 edition = "2021"
 description = "universal linux-only tool."
+authors = ["Noxy <107372460+noxygalaxy@users.noreply.github.com>"]
+license = "MIT"
+repository = "https://github.com/moonpkg/cli"
+homepage = "https://moonpkg.github.io/cli"
+readme = "README.md"
+keywords = ["cli", "installer", "linux", "deb", "bundle"]
+categories = ["command-line-utilities"]
+
+include = [
+    "src/**/*",
+    "/Cargo.lock",
+    "/LICENSE",
+    "/README.md",
+    "/HOW_TO_BUNDLE.md",
+    "/install.sh",
+    "/docs/scripts/install.sh",
+]
 
 [dependencies]
 
