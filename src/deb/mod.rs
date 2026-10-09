@@ -616,6 +616,7 @@ pub fn install_deb(d: &Dirs, o: &InstallOpts, src: &Path, work: &Path, fname: &s
                 deb: true,
                 root: root_mode,
                 portable: o.portable.clone(),
+                deps: Vec::new(),
             },
         )?;
         if !st.desktop.is_empty() {

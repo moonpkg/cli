@@ -8,13 +8,14 @@ use std::os::unix::fs::{PermissionsExt, symlink};
 use std::path::{Path, PathBuf};
 
 use crate::config::{Config, ico};
+use crate::deps;
 use crate::desktop::update_desktop_db;
 use crate::fsutil::{copy_tree, pick_main, walk};
 use crate::history::push_history;
 use crate::install::{ConflictChoice, InstallOpts, remove_app, resolve_conflict};
 use crate::naming::sanitize;
 use crate::paths::{Cleanup, Dirs, warn_path};
-use crate::probe::try_capture;
+use crate::probe::{missing_libs, try_capture};
 use crate::state::{LastInstall, Manifest, manifest_path, moon_owned_link, parse_manifest, read_manifest, render_manifest, write_last, write_manifest};
 use crate::util::{Res, human_size};
 
@@ -401,6 +402,17 @@ pub fn install_bundle(d: &Dirs, o: &mut InstallOpts, src: &Path, work: &Path, fn
     if let Some(dk) = &m.desktop {
         println!("    {:<12}{}", "Menu entry:", dk.display());
     }
+    if !m.deps.is_empty() {
+        let (id, id_like) = deps::os_release();
+        let shown = match deps::pick_group(&m.deps, &id, &id_like) {
+            Some(g) => format!("{} ({})", g.packages.join(", "), g.distro),
+            None => {
+                let names: Vec<&str> = m.deps.iter().map(|d| d.distro.as_str()).collect();
+                format!("declared for {} - not this system ({id})", names.join(", "))
+            }
+        };
+        println!("    {:<12}{}", "Dependencies:", shown);
+    }
 
     if o.dry_run {
         println!();
@@ -434,6 +446,7 @@ pub fn install_bundle(d: &Dirs, o: &mut InstallOpts, src: &Path, work: &Path, fn
 
     let main = final_dir.join(&main_rel);
     let _ = fs::set_permissions(&main, fs::Permissions::from_mode(0o755));
+    ensure_bundle_deps(&cfg, &m, &main);
 
     let mut icon_dest = None;
     if let Some(icon) = m.desktop.as_ref().and_then(|_| icon_in(&stage.join("icon"))) {
@@ -535,4 +548,75 @@ pub fn install_bundle(d: &Dirs, o: &mut InstallOpts, src: &Path, work: &Path, fn
     println!("{} Done. Run it with:  {}", cfg.icon(ico::CHECK), cmd);
     println!();
     Ok(())
+}
+
+fn ensure_bundle_deps(cfg: &Config, m: &Manifest, main: &Path) {
+    if m.deps.is_empty() {
+        return;
+    }
+    let miss = missing_libs(&[main.to_path_buf()]);
+    if miss.is_empty() {
+        return;
+    }
+    let (id, id_like) = deps::os_release();
+    let Some(g) = deps::pick_group(&m.deps, &id, &id_like) else {
+        let names: Vec<&str> = m.deps.iter().map(|d| d.distro.as_str()).collect();
+        eprintln!(
+            "warning: {} {} shared librar{} missing ({}), but the bundle declares dependencies for {} which does not match this system ({id}).\n    install the matching packages for {} with your package manager",
+            cfg.icon(ico::WARN),
+            miss.len(),
+            if miss.len() == 1 { "y is" } else { "ies are" },
+            miss.join(", "),
+            names.join(", "),
+            g_distro_hint(&id)
+        );
+        return;
+    };
+
+    println!();
+    println!(
+        "{} {} Dependencies for {}: {}",
+        cfg.step(),
+        cfg.icon(ico::DOWNLOAD),
+        g.distro,
+        g.packages.join(", ")
+    );
+    let libdir = main.parent().unwrap_or(main).join("lib");
+    match deps::fetch_deps(g, &libdir) {
+        Ok((n, names)) => {
+            let verb = if n == 1 { "shared library" } else { "shared libraries" };
+            println!(
+                "{} {} downloaded {} package(s) ({}) and unpacked {} {} into {}",
+                cfg.step(),
+                cfg.icon(ico::DOWNLOAD),
+                names.len(),
+                names.join(", "),
+                n,
+                verb,
+                libdir.display()
+            );
+        }
+        Err(e) => {
+            println!(
+                "{} {} could not fetch the dependencies automatically: {e}",
+                cfg.step(),
+                cfg.icon(ico::WARN)
+            );
+        }
+    }
+    let still = missing_libs(&[main.to_path_buf()]);
+    if !still.is_empty() {
+        eprintln!(
+            "warning: {} still missing after fetching dependencies: {}.\n    install the matching {} packages manually, e.g.  sudo pacman -S <lib>",
+            cfg.icon(ico::WARN),
+            still.join(", "),
+            g.distro
+        );
+    }
+}
+
+fn g_distro_hint(id: &str) -> String {
+    deps::family(id)
+        .map(|f| format!("a {f}-based system"))
+        .unwrap_or_else(|| id.to_string())
 }

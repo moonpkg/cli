@@ -3,6 +3,7 @@ mod bundle;
 mod cli;
 mod config;
 mod deb;
+mod deps;
 mod desktop;
 mod doctor;
 mod fsutil;

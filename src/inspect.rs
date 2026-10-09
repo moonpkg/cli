@@ -7,6 +7,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::bundle::{bundle_manifest, icon_in};
 use crate::config::{Config, ico};
+use crate::deps;
 use crate::fsutil::{desktop_and_icon, is_exec_file, pick_main, tree_size, walk};
 use crate::naming::{capitalize, guess_arch, guess_name, guess_version, is_noise, name_words, sanitize};
 use crate::paths::{Cleanup, Dirs};
@@ -693,6 +694,25 @@ fn report_bundle(d: &Dirs, src: &Path, work: &Path) -> Res<Report> {
         None => (format!("unknown - assuming {host}"), true),
     };
 
+    let mut notes: Vec<String> = vec![
+        "a .moon bundle is a plain tar.gz: `tar xf` opens it, nothing else is needed".into(),
+        "the menu entry and icon inside are rewritten to this machine's paths".into(),
+        format!("no server: the file itself is the whole package ({})", human_size(size)),
+    ];
+    if !bm.deps.is_empty() {
+        let (id, id_like) = deps::os_release();
+        let txt = match deps::pick_group(&bm.deps, &id, &id_like) {
+            Some(g) => format!("{} ({})", g.packages.join(", "), g.distro),
+            None => {
+                let names: Vec<&str> = bm.deps.iter().map(|d| d.distro.as_str()).collect();
+                format!("declared for {} - not this system ({id})", names.join(", "))
+            }
+        };
+        notes.push(format!(
+            "declares downloadable dependencies: {txt} (moon fetches them from the distro's own repos, no root, nothing system-wide)"
+        ));
+    }
+
     Ok(Report {
         title: capitalize(&name),
         kind: "Moon bundle".into(),
@@ -712,11 +732,7 @@ fn report_bundle(d: &Dirs, src: &Path, work: &Path) -> Res<Report> {
         checks_title: "Checks".into(),
         name_label: "Would install as".into(),
         from_name: Some(format!("{name}.moon")),
-        notes: vec![
-            "a .moon bundle is a plain tar.gz: `tar xf` opens it, nothing else is needed".into(),
-            "the menu entry and icon inside are rewritten to this machine's paths".into(),
-            format!("no server: the file itself is the whole package ({})", human_size(size)),
-        ],
+        notes,
         install_to: vec![format!("{}/", app_dir.display())],
         app_dir,
         creates,

@@ -20,6 +20,13 @@ pub struct Manifest {
     pub deb: bool,
     pub root: bool,
     pub portable: Option<PathBuf>,
+    pub deps: Vec<DepGroup>,
+}
+
+#[derive(Default, Clone, Debug, PartialEq, Eq)]
+pub struct DepGroup {
+    pub distro: String,
+    pub packages: Vec<String>,
 }
 
 pub fn manifest_path(d: &Dirs, name: &str) -> PathBuf {
@@ -32,7 +39,28 @@ pub fn read_manifest(d: &Dirs, name: &str) -> Option<Manifest> {
 
 pub fn parse_manifest(text: &str) -> Manifest {
     let mut m = Manifest::default();
+    let mut sec: Option<String> = None;
+    let mut pkgs: Vec<String> = Vec::new();
+    let flush = |sec: &mut Option<String>, pkgs: &mut Vec<String>, out: &mut Vec<DepGroup>| {
+        if let Some(d) = sec.take() {
+            if !pkgs.is_empty() {
+                out.push(DepGroup { distro: d, packages: std::mem::take(pkgs) });
+            }
+        }
+    };
     for l in text.lines() {
+        let t = l.trim();
+        if t.starts_with('[') && t.ends_with(']') {
+            flush(&mut sec, &mut pkgs, &mut m.deps);
+            sec = Some(t[1..t.len() - 1].trim().to_string());
+            continue;
+        }
+        if sec.is_some() {
+            for w in t.split_whitespace() {
+                pkgs.push(w.to_string());
+            }
+            continue;
+        }
         let Some((k, v)) = l.split_once('=') else { continue };
         let p = PathBuf::from(v);
         match k {
@@ -51,6 +79,7 @@ pub fn parse_manifest(text: &str) -> Manifest {
             _ => {}
         }
     }
+    flush(&mut sec, &mut pkgs, &mut m.deps);
     m
 }
 
@@ -98,6 +127,9 @@ pub fn render_manifest(m: &Manifest) -> String {
     }
     if let Some(p) = &m.desktop {
         s += &format!("desktop={}\n", p.display());
+    }
+    for g in &m.deps {
+        s += &format!("\n[{}]\n{}\n", g.distro, g.packages.join(" "));
     }
     s
 }
