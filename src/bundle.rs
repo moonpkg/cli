@@ -221,6 +221,7 @@ pub fn cmd_bundle(d: &Dirs, cfg: &Config, name: &str, out: Option<&Path>, force:
         links: links.iter().map(|(c, _)| PathBuf::from(c)).collect(),
         link_targets: links.iter().map(|(_, t)| PathBuf::from(APP_DIR).join(t)).collect(),
         cmds: links.iter().map(|(c, _)| c.clone()).collect(),
+        deps: m.deps.clone(),
         ..Default::default()
     };
     let manifest_text = render_manifest(&bm);
