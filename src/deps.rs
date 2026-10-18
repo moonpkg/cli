@@ -1,4 +1,4 @@
-//! Downloadable, per-distro dependencies for bundles.
+//! Per-distro system dependencies for bundles.
 //!
 //! A bundle may declare the system packages it needs in per-distro sections:
 //!
@@ -9,13 +9,22 @@
 //! libwebkit2gtk-4.1-0 libgtk-3-0
 //!
 //! When 'moon install' finds the bundle's program misses shared libraries and
-//! a section matches the machine's distro, the packages are downloaded from
-//! the distro's own repositories (no root required) and their shared objects
-//! are unpacked into the app's 'lib/' folder next to the program, where an
-//! '$ORIGIN/lib' rpath finds them. Nothing touches the system: the files
-//! belong to the app and gets uninstalled with 'moon remove'.
+//! a section matches the machine's distro, moon installs those packages for
+//! the machine: it first checks which of them are already present and only
+//! hands the missing ones to the system package manager (pacman, apt-get,
+//! dnf, zypper - through sudo unless already root), auto-confirming.
 //!
-//! Supported systems and how they are fetched:
+//! That is the primary route because a package can ship more than its
+//! libraries: WebKit, for instance, needs its helper programs under
+//! /usr/lib/webkit2gtk-4.1, which only a real package install puts in place.
+//!
+//! If the system package manager cannot be used, moon falls back to fetching
+//! the packages from the distro's repositories itself and unpacking their
+//! shared objects into the app's 'lib/' folder next to the program, where an
+//! '$ORIGIN/lib' rpath finds them. That needs no root, but cannot provide the
+//! files a package installs outside its libraries.
+//!
+//! How the fallback fetches packages:
 //!
 //! * **deb** ('[debian]', '[ubuntu]', ...): 'apt-get download' + 'dpkg-deb -x'
 //! * **arch**: the Arch package search JSON API + a mirror + 'tar --zstd'
@@ -100,6 +109,75 @@ pub fn fetch_deps(g: &DepGroup, libdir: &Path) -> Res<(usize, Vec<String>)> {
     };
     let _ = fs::remove_dir_all(&work);
     res
+}
+
+///
+///
+/// system packages
+///
+///
+
+pub fn missing_packages(g: &DepGroup) -> Res<Vec<String>> {
+    let fam = family(&g.distro)
+        .ok_or_else(|| format!("dependency section '{}' is not a system moon knows packages for", g.distro))?;
+    Ok(g.packages.iter().filter(|p| !pkg_installed(fam, p.as_str())).cloned().collect())
+}
+
+pub fn install_system(g: &DepGroup) -> Res<Option<Vec<String>>> {
+    let missing = missing_packages(g)?;
+    if missing.is_empty() {
+        return Ok(None);
+    }
+    let fam = family(&g.distro).unwrap_or("debian");
+    let (mgr, args) = install_cmd(fam, &missing);
+
+    let mut cmd;
+    if is_root() {
+        cmd = Command::new(mgr);
+    } else {
+        cmd = Command::new("sudo");
+        cmd.arg(mgr);
+    }
+    let status = cmd
+        .args(&args)
+        .status()
+        .map_err(|e| format!("cannot run `{mgr}`: {e} (is it installed?)"))?;
+    if !status.success() {
+        return Err(format!("`{mgr}` exited with {status}"));
+    }
+    Ok(Some(missing))
+}
+
+fn install_cmd(fam: &str, pkgs: &[String]) -> (&'static str, Vec<String>) {
+    let (mgr, mut args): (&'static str, Vec<String>) = match fam {
+        "arch" => ("pacman", vec!["-S".into(), "--noconfirm".into(), "--needed".into()]),
+        "fedora" => ("dnf", vec!["install".into(), "-y".into()]),
+        "opensuse" => ("zypper", vec!["--non-interactive".into(), "install".into()]),
+        _ => ("apt-get", vec!["install".into(), "-y".into()]),
+    };
+    args.extend(pkgs.iter().cloned());
+    (mgr, args)
+}
+
+fn pkg_installed(fam: &str, pkg: &str) -> bool {
+    let (cmd, args): (&str, Vec<&str>) = match fam {
+        "arch" => ("pacman", vec!["-Qq", pkg]),
+        "debian" => ("dpkg-query", vec!["-W", "-f=${Status}", pkg]),
+        _ => ("rpm", vec!["-q", pkg]),
+    };
+    let Ok(o) = Command::new(cmd).args(&args).output() else { return false };
+    if !o.status.success() {
+        return false;
+    }
+    fam != "debian" || String::from_utf8_lossy(&o.stdout).contains("install ok installed")
+}
+
+fn is_root() -> bool {
+    Command::new("id")
+        .arg("-u")
+        .output()
+        .map(|o| String::from_utf8_lossy(&o.stdout).trim() == "0")
+        .unwrap_or(false)
 }
 
 ///

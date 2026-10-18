@@ -583,6 +583,33 @@ fn ensure_bundle_deps(cfg: &Config, m: &Manifest, main: &Path) {
         g.packages.join(", ")
     );
     let libdir = main.parent().unwrap_or(main).join("lib");
+
+    match deps::install_system(g) {
+        Ok(Some(installed)) => {
+            println!(
+                "{} {} installed {} system package(s): {}",
+                cfg.step(),
+                cfg.icon(ico::CHECK),
+                installed.len(),
+                installed.join(", ")
+            );
+            report_missing(cfg, main, &g.distro);
+            return;
+        }
+        Ok(None) => {
+            report_missing(cfg, main, &g.distro);
+            return;
+        }
+        Err(e) => {
+            println!(
+                "{} {} could not use the system package manager ({e}), downloading instead",
+                cfg.step(),
+                cfg.icon(ico::WARN)
+            );
+        }
+    }
+
+    // Fall back to unpacking the packages into the app's own lib/ folder.
     match deps::fetch_deps(g, &libdir) {
         Ok((n, names)) => {
             let verb = if n == 1 { "shared library" } else { "shared libraries" };
@@ -605,13 +632,17 @@ fn ensure_bundle_deps(cfg: &Config, m: &Manifest, main: &Path) {
             );
         }
     }
+    report_missing(cfg, main, &g.distro);
+}
+
+fn report_missing(cfg: &Config, main: &Path, distro: &str) {
     let still = missing_libs(&[main.to_path_buf()]);
     if !still.is_empty() {
         eprintln!(
-            "warning: {} still missing after fetching dependencies: {}.\n    install the matching {} packages manually, e.g.  sudo pacman -S <lib>",
+            "warning: {} still missing after fetching dependencies: {}.\n    install the matching {} packages manually with your package manager",
             cfg.icon(ico::WARN),
             still.join(", "),
-            g.distro
+            distro
         );
     }
 }
