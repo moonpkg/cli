@@ -22,7 +22,7 @@
 //! * **fedora / opensuse**: 'dnf download' / 'zypper download' + 'rpm2cpio' + 'cpio'
 
 use std::fs;
-use std::os::unix::fs::PermissionsExt;
+use std::os::unix::fs::{symlink, PermissionsExt};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -149,40 +149,33 @@ fn fetch_arch(g: &DepGroup, work: &Path, libdir: &Path) -> Res<(usize, Vec<Strin
     let mut copied = 0;
     let mut names = Vec::new();
     for pkg in &g.packages {
-        let url = format!("https://archlinux.org/packages/search/json/?q={pkg}");
+        let q = pkg.replace('+', "%2B");
+        let url = format!("https://archlinux.org/packages/search/json/?q={q}");
         let json = work.join(format!("search-{pkg}.json"));
         if let Err(e) = fetch_url(&url, &json) {
             eprintln!("  moon: cannot query the Arch package database for {pkg}: {e}");
             continue;
         }
         let text = fs::read_to_string(&json).unwrap_or_default();
-        let entries = arch_entries(&text);
-        if entries.is_empty() {
+        let entries = arch_entries(&text, &uname_m());
+        let Some((repo, file)) = pick_entry(&entries, pkg) else {
             eprintln!("  moon: no {} package named '{pkg}' found in the Arch repositories", uname_m());
             continue;
+        };
+        let dl = format!("https://geo.mirror.pkgbuild.com/{repo}/os/{}/{}", uname_m(), file);
+        let dest = work.join(file);
+        if let Err(e) = fetch_url(&dl, &dest) {
+            eprintln!("  moon: cannot fetch {file}: {e}");
+            continue;
         }
-        let mut ok = false;
-        for (repo, file) in entries {
-            let dl = format!("https://geo.mirror.pkgbuild.com/{repo}/os/{}/{}", uname_m(), file);
-            let dest = work.join(&file);
-            if let Err(e) = fetch_url(&dl, &dest) {
-                eprintln!("  moon: cannot fetch {file}: {e}");
-                continue;
-            }
-            let x = work.join("pkg");
-            let _ = fs::remove_dir_all(&x);
-            if fs::create_dir_all(&x).is_err() || !extract_tar(&dest, &x) {
-                eprintln!("  moon: cannot unpack {file} (needs tar with zstd, or bsdtar)");
-                continue;
-            }
-            copied += copy_libs(&x, libdir);
-            names.push(pkg.clone());
-            ok = true;
-            break;
+        let x = work.join("pkg");
+        let _ = fs::remove_dir_all(&x);
+        if fs::create_dir_all(&x).is_err() || !extract_tar(&dest, &x) {
+            eprintln!("  moon: cannot unpack {file} (needs tar with zstd, or bsdtar)");
+            continue;
         }
-        if !ok {
-            eprintln!("  moon: could not download '{pkg}' from any Arch mirror");
-        }
+        copied += copy_libs(&x, libdir);
+        names.push(pkg.clone());
     }
     if names.is_empty() {
         return Err("no Arch dependency package could be downloaded".into());
@@ -190,42 +183,119 @@ fn fetch_arch(g: &DepGroup, work: &Path, libdir: &Path) -> Res<(usize, Vec<Strin
     Ok((copied, names))
 }
 
-fn arch_entries(json: &str) -> Vec<(String, String)> {
+struct ArchEntry {
+    name: String,
+    repo: String,
+    file: String,
+}
+
+fn arch_entries(json: &str, arch: &str) -> Vec<ArchEntry> {
     let mut out = Vec::new();
-    let mut at = 0;
-    while let Some(rel) = json[at..].find("\"exact_filename\":\"") {
-        let pos = at + rel;
-        let after = pos + "\"exact_filename\":\"".len();
-        let Some(end) = json[after..].find('"') else { break };
-        let end = after + end;
-        let file = json[after..end].to_string();
-        let obj_start = json[..pos].rfind('{').unwrap_or(0);
-        let obj_end = json[end..].find('}').map(|e| end + e).unwrap_or(json.len());
-        let obj = &json[obj_start..obj_end];
-        let arch = field(obj, "arch");
-        if arch == uname_m() {
-            if let Some(repo) = first_repo(obj) {
-                out.push((repo, file));
-            }
+    for obj in result_objects(json) {
+        let name = field(obj, "pkgname");
+        let repo = field(obj, "repo");
+        let file = field(obj, "filename");
+        if !name.is_empty() && !repo.is_empty() && !file.is_empty() && field(obj, "arch") == arch {
+            out.push(ArchEntry {
+                name: name.to_string(),
+                repo: repo.to_string(),
+                file: file.to_string(),
+            });
         }
-        at = end;
     }
     out
 }
 
-fn field<'a>(obj: &'a str, key: &str) -> &'a str {
-    let needle = format!("{key}\":\"");
-    let Some(rel) = obj.find(&needle) else { return "" };
-    let at = rel + needle.len();
-    let end = obj[at..].find('"').map(|e| at + e).unwrap_or(obj.len());
-    &obj[at..end]
+fn pick_entry<'a>(entries: &'a [ArchEntry], pkg: &str) -> Option<(&'a str, &'a str)> {
+    let e = entries
+        .iter()
+        .find(|e| e.name.as_str() == pkg)
+        .or_else(|| if entries.len() == 1 { entries.first() } else { None })?;
+    Some((e.repo.as_str(), e.file.as_str()))
 }
 
-fn first_repo(obj: &str) -> Option<String> {
-    let needle = "\"repos\":[\"";
-    let at = obj.find(needle)? + needle.len();
-    let end = obj[at..].find('"')?;
-    Some(obj[at..at + end].to_string())
+fn result_objects(json: &str) -> Vec<&str> {
+    let Some(at) = json.find("\"results\"") else { return Vec::new() };
+    let Some(open) = json[at..].find('[').map(|i| at + i) else { return Vec::new() };
+    let b = json.as_bytes();
+    let mut out = Vec::new();
+    let mut i = open + 1;
+    while i < b.len() {
+        match b[i] {
+            b'"' => i = skip_str(b, i),
+            b'{' => {
+                let (o, next) = object_at(json, i);
+                out.push(o);
+                i = next;
+            }
+            b']' => break,
+            _ => i += 1,
+        }
+    }
+    out
+}
+
+fn object_at(json: &str, start: usize) -> (&str, usize) {
+    let b = json.as_bytes();
+    let mut depth = 0i32;
+    let mut i = start;
+    while i < b.len() {
+        match b[i] {
+            b'"' => {
+                i = skip_str(b, i);
+                continue;
+            }
+            b'{' => depth += 1,
+            b'}' => {
+                depth -= 1;
+                if depth == 0 {
+                    return (&json[start..=i], i + 1);
+                }
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+    (&json[start..], b.len())
+}
+
+fn skip_str(b: &[u8], mut i: usize) -> usize {
+    i += 1;
+    while i < b.len() {
+        match b[i] {
+            b'\\' => i += 2,
+            b'"' => return i + 1,
+            _ => i += 1,
+        }
+    }
+    i
+}
+
+fn read_str(s: &str, start: usize) -> (&str, usize) {
+    let b = s.as_bytes();
+    let mut i = start + 1;
+    while i < b.len() {
+        match b[i] {
+            b'\\' => i += 2,
+            b'"' => return (&s[start + 1..i], i + 1),
+            _ => i += 1,
+        }
+    }
+    (&s[start + 1..], b.len())
+}
+
+fn field<'a>(obj: &'a str, key: &str) -> &'a str {
+    let needle = format!("\"{key}\"");
+    let Some(mut at) = obj.find(needle.as_str()).map(|i| i + needle.len()) else { return "" };
+    let b = obj.as_bytes();
+    while at < b.len() && (b[at] == b':' || b[at].is_ascii_whitespace()) {
+        at += 1;
+    }
+    if at < b.len() && b[at] == b'"' {
+        let (v, _) = read_str(obj, at);
+        return v;
+    }
+    ""
 }
 
 ///
@@ -308,13 +378,25 @@ fn copy_libs_from(dir: &Path, libdir: &Path, depth: usize) -> usize {
             if depth < 6 {
                 n += copy_libs_from(&p, libdir, depth + 1);
             }
-        } else if ft.is_file() && file_so(&p) {
-            let Some(name) = p.file_name().and_then(|f| f.to_str()).map(String::from) else { continue };
-            let dest = libdir.join(&name);
-            if !dest.exists() && fs::copy(&p, &dest).is_ok() {
-                let _ = fs::set_permissions(&dest, fs::Permissions::from_mode(0o755));
+            continue;
+        }
+        let Some(name) = p.file_name().and_then(|f| f.to_str()).map(String::from) else { continue };
+        if !file_so(Path::new(&name)) {
+            continue;
+        }
+        let dest = libdir.join(&name);
+        if fs::symlink_metadata(&dest).is_ok() {
+            continue;
+        }
+        if ft.is_symlink() {
+            let Ok(target) = fs::read_link(&p) else { continue };
+            let target = target.file_name().map(PathBuf::from).unwrap_or(target);
+            if symlink(&target, &dest).is_ok() {
                 n += 1;
             }
+        } else if ft.is_file() && fs::copy(&p, &dest).is_ok() {
+            let _ = fs::set_permissions(&dest, fs::Permissions::from_mode(0o755));
+            n += 1;
         }
     }
     n
@@ -365,15 +447,24 @@ pub fn fetch_url(url: &str, dest: &Path) -> Res<()> {
 }
 
 fn extract_tar(file: &Path, dir: &Path) -> bool {
-    let f = file.to_str().unwrap_or("");
-    let d = dir.to_str().unwrap_or("");
-    if let Ok(s) = Command::new("tar").args(["-xf", f, "-C", d]).status() {
-        if s.success() {
-            return true;
-        }
+    let f = file.to_string_lossy().into_owned();
+    let d = dir.to_string_lossy().into_owned();
+    let zst = f.ends_with(".zst") || f.ends_with(".zstd");
+    let mut tries: Vec<(&str, Vec<String>)> = Vec::new();
+    if zst {
+        tries.push(("tar", vec!["--zstd".into(), "-xf".into(), f.clone(), "-C".into(), d.clone()]));
     }
-    if let Ok(s) = Command::new("bsdtar").args(["-xf", f, "-C", d]).status() {
-        return s.success();
+    tries.push(("tar", vec!["-xf".into(), f.clone(), "-C".into(), d.clone()]));
+    if !zst {
+        tries.push(("tar", vec!["--zstd".into(), "-xf".into(), f.clone(), "-C".into(), d.clone()]));
+    }
+    tries.push(("bsdtar", vec!["-xf".into(), f.clone(), "-C".into(), d.clone()]));
+    for (cmd, args) in tries {
+        if let Ok(s) = Command::new(cmd).args(&args).status() {
+            if s.success() {
+                return true;
+            }
+        }
     }
     false
 }
