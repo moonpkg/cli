@@ -46,6 +46,7 @@ It will:
 | <img src="https://raw.githubusercontent.com/moonpkg/cli/main/docs/icons/FOLDER.svg" width="16" alt="bundle"> | `moon bundle <name\|folder> [out.moon]` | pack an app, or a bundle folder, into one `.moon` file |
 | <img src="https://raw.githubusercontent.com/moonpkg/cli/main/docs/icons/TRASH.svg" width="16" alt="unexport"> | `moon unexport <name>` | delete a portable bundle |
 | <img src="https://raw.githubusercontent.com/moonpkg/cli/main/docs/icons/CLOCK.svg" width="16" alt="history"> | `moon history [-n N] [--clear]` | what was installed, and when |
+| <img src="https://raw.githubusercontent.com/moonpkg/cli/main/docs/icons/LINK.svg" width="16" alt="handler"> | `moon url [--remove]` | make `moon://` links open moon |
 | <img src="https://raw.githubusercontent.com/moonpkg/cli/main/docs/icons/COG.svg" width="16" alt="config"> | `moon config` | settings |
 | <img src="https://raw.githubusercontent.com/moonpkg/cli/main/docs/icons/MOON.svg" width="16" alt="moon"> | `moon help`, `moon version` | |
 
@@ -138,6 +139,19 @@ ytkew-moon/
 
 The manifest is moon's own `key=value` format with paths relative to the bundle: `dir`, `main`, `version`, `desktop`, and `link`/`to` pairs for each command. On install moon rewrites the bundled menu entry to the new machine's paths, links the commands into `~/.local/bin`, and saves a manifest with the real ones. **[How to bundle](https://github.com/moonpkg/cli/blob/main/HOW_TO_BUNDLE.md)** has the whole guide.
 
+### <img src="https://raw.githubusercontent.com/moonpkg/cli/main/docs/icons/LINK.svg" width="18" alt="" valign="-4"> `moon://` links
+
+```
+moon install moon://install?url=https://example.com/app.tar.gz
+moon install moon://github?repo=owner/name               # newest release, its .moon asset
+moon install moon://github?repo=owner/name&file=App.moon
+moon install moon://github?repo=owner/name&tag=v1.2.3
+moon url                                                 # re-register, pointing at this moon
+moon url --remove                                        # unregister
+```
+
+Installing moon with `cargo install moon` or either install script registers the handler on its own; `moon url` points it at the binary you are running now. Clicking a link opens a terminal that shows the download and waits for Enter before closing. `moon://install=<url>` works too, and the URL may be percent-encoded. For `moon://github` give `owner/name` or a full GitHub URL: without `file` moon looks at the release's assets, takes the `.moon` package, and asks in the terminal which one to use when a release has several. In a script, add `file=<name>` instead of being asked.
+
 ### <img src="https://raw.githubusercontent.com/moonpkg/cli/main/docs/icons/WRENCH.svg" width="18" alt="" valign="-4"> doctor
 
 ```
@@ -173,7 +187,7 @@ All 26 glyphs are single codepoints in the Font Awesome, Octicons and Devicons r
 
 ## Supported inputs
 
-`.tar.gz` `.tar.xz` `.tar.bz2` `.tar.zst` `.tgz` `.tar` `.zip` `.7z` `.AppImage` `.deb` `.moon`, bare executables, and `http(s)://` URLs.
+`.tar.gz` `.tar.xz` `.tar.bz2` `.tar.zst` `.tgz` `.tar` `.zip` `.7z` `.AppImage` `.deb` `.moon`, bare executables, `http(s)://` URLs, and `moon://` links.
 
 `moon install` with no arguments opens a picker over the current directory: arrows or `hjkl` to move, `enter` to install, `q` to quit.
 
@@ -189,6 +203,8 @@ src/
   doctor.rs      broken-entry detection and repair
   portable.rs    portable installs and bundles
   bundle.rs      .moon bundles: pack and install one file
+  uri.rs         moon:// links: parse, pick a GitHub release asset, register the handler
+build.rs         registers the moon:// handler during a release install
   update.rs      self-update through the release install script
   archive/       download and unpack
   deb/           ar, control file, install plan, rollback

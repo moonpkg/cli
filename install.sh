@@ -37,5 +37,7 @@ case ":$PATH:" in
     ;;
 esac
 
+"$BIN_DIR/moon" url >/dev/null 2>&1 || true
+
 echo
 echo "Done. Try:  moon help"

@@ -29,6 +29,7 @@ USAGE:
     moon doctor [--fix]                    find apps you deleted by hand, repair them
     moon export <name> [dir]               copy an installed app as a portable bundle
     moon history [-n N] [--clear]          what was installed, and when
+    moon url [--remove]                    register (or drop) the moon:// URL handler
     moon config [--check]                  settings (icons, Nerd Font, update)
     moon help | --version
 
@@ -59,6 +60,15 @@ UNDO / CONFIG OPTIONS:
     --update            update without opening the menu
     --script <path|url> use another installer instead of the official one
 
+MOON LINKS:
+    moon install moon://install?url=<url>        install from an https URL
+    moon install moon://github?repo=owner/name   newest release, the .moon asset in it
+    moon install moon://github?repo=owner/name&file=App.moon
+    moon install moon://github?repo=owner/name&tag=v1.2.3
+    moon url                                     make moon:// links open in a terminal
+    moon url <moon://...>                        open a link now (the handler calls this)
+    moon url --remove                            unregister the handler
+
 UPDATE:
     moon config                 pick 2: fetch docs/scripts/install.sh into the tmp dir and
                                 run it - moon closes itself first, so the new binary can
@@ -72,7 +82,7 @@ SUPPORTED: .tar.gz .tar.xz .tar.bz2 .tar.zst .tgz .tar .zip .7z .AppImage .deb .
 
 pub fn run() -> Res<()> {
     let all: Vec<String> = env::args().skip(1).collect();
-    let Some(cmd) = all.first().map(String::as_str) else {
+    let Some(mut cmd) = all.first().map(String::as_str) else {
         usage();
         return Ok(());
     };
@@ -96,6 +106,15 @@ pub fn run() -> Res<()> {
         }
         args.push(all[i].clone());
         i += 1;
+    }
+    if !args.iter().any(|a| a == "--remove" || a == "--uninstall") {
+        if let Ok(d) = Dirs::new() {
+            crate::uri::repair(&d);
+        }
+    }
+    if crate::uri::is_uri(cmd) {
+        cmd = "install";
+        args.insert(0, cmd.to_string());
     }
     match cmd {
         "help" | "-h" | "--help" => {
@@ -216,6 +235,16 @@ pub fn run() -> Res<()> {
                 return Err("usage: moon install <archive|url|deb> [opts]".into());
             }
             install(&Dirs::new()?, &mut o)
+        }
+        "url" | "protocol" | "handler" => {
+            let d = Dirs::new()?;
+            if args.iter().any(|a| a == "--remove" || a == "--uninstall") {
+                return crate::uri::cmd_url(&d, &cfg, true);
+            }
+            match args[1..].iter().find(|a| !a.starts_with('-')) {
+                Some(t) => crate::uri::open(&d, t),
+                None => crate::uri::cmd_url(&d, &cfg, false),
+            }
         }
         "doctor" | "check" | "verify" | "repair" => {
             let d = Dirs::new()?;

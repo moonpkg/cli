@@ -614,6 +614,14 @@ pub fn cmd_inspect(d: &Dirs, cfg: &Config, target: &str) -> Res<()> {
         return inspect_last(d, cfg);
     }
 
+    let resolved;
+    let target = if crate::uri::is_uri(target) {
+        resolved = crate::uri::resolve(target)?;
+        resolved.as_str()
+    } else {
+        target
+    };
+
     let work = d.tmp.join(format!("inspect-{}", std::process::id()));
     let _ = fs::remove_dir_all(&work);
     fs::create_dir_all(&work).map_err(|e| e.to_string())?;

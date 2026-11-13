@@ -161,7 +161,7 @@ pub fn cmd_undo(d: &Dirs, cfg: &Config, name: Option<&str>, yes: bool) -> Res<()
     Ok(())
 }
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct InstallOpts {
     pub source: String,
     pub name: Option<String>,
@@ -238,6 +238,9 @@ pub fn remove_app(d: &Dirs, name: &str, quiet: bool) -> Res<()> {
 
 pub fn install(d: &Dirs, o: &mut InstallOpts) -> Res<()> {
     d.ensure()?;
+    if crate::uri::is_uri(&o.source) {
+        o.source = crate::uri::resolve(&o.source)?;
+    }
     let work = d.tmp.join(format!("job-{}", std::process::id()));
     let _ = fs::remove_dir_all(&work);
     fs::create_dir_all(&work).map_err(|e| e.to_string())?;
