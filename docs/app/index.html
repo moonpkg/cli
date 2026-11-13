@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Install with moon</title>
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+<div class="wrap">
+<header>
+  <a class="logo" href="../" aria-label="moon home">
+    <img src="../assets/logo.webp" style="width:20px;height:20px;">moon
+  </a>
+  <nav>
+    <a href="../#install">Install moon</a><a href="https://github.com/moonpkg/cli">GitHub</a>
+    <button class="theme" id="theme" aria-label="Toggle light and dark">light/dark</button>
+  </nav>
+</header>
+
+<section class="pad">
+  <h1 id="title">Opening moon</h1>
+  <p class="dim" id="lead">Handing this link to moon, which opens a terminal and shows the download.</p>
+
+  <div class="box" style="max-width:620px;margin-top:24px">
+    <a class="btn" id="go" href="#" style="display:block;padding:20px;text-align:center;text-decoration:none;font-size:16px">Open in moon</a>
+  </div>
+
+  <div class="box" style="max-width:620px;margin-top:20px">
+    <div class="cmdrow">
+      <div class="cmd"><span class="p">$ </span><span id="cmd">moon install</span></div>
+      <button class="copy" id="copy">copy</button>
+    </div>
+  </div>
+
+  <p class="dim" id="hint" style="margin-top:24px">Nothing happened? moon may not be installed, or its link handler is not registered yet. Install moon first, then run <code>moon url</code> once and open this page again.</p>
+  <div class="box" style="max-width:620px">
+    <div class="cmdrow">
+      <div class="cmd"><span class="p">$ </span>cargo install moon</div>
+      <button class="copy" id="copycargo">copy</button>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <span>moon, by @noxygalaxy</span>
+  <span><a href="../">Home</a> &nbsp; <a href="https://github.com/moonpkg/cli">GitHub</a></span>
+</footer>
+</div>
+
+<script src="../script.js"></script>
+<script>
+(function () {
+  var q = new URLSearchParams(location.search);
+  var repo = q.get("repo") || "";
+  var url = q.get("url") || "";
+  var tag = q.get("tag") || "";
+  var file = q.get("file") || "";
+  var type = (q.get("type") || "").toLowerCase();
+  if (!type) type = repo ? "github" : url ? "install" : "";
+  if (type === "url") type = "install";
+
+  var link = "";
+  if (type === "github" && repo)
+    link =
+      "moon://github?" +
+      ["repo=" + encodeURIComponent(repo), tag && "tag=" + encodeURIComponent(tag), file && "file=" + encodeURIComponent(file)]
+        .filter(Boolean)
+        .join("&");
+  else if (type === "install" && url)
+    link = "moon://install?url=" + encodeURIComponent(url);
+
+  var title = document.getElementById("title"),
+    lead = document.getElementById("lead"),
+    go = document.getElementById("go"),
+    cmd = document.getElementById("cmd"),
+    hint = document.getElementById("hint");
+
+  function copy(text, button) {
+    var label = button.textContent;
+    function done() {
+      button.textContent = "copied";
+      setTimeout(function () {
+        button.textContent = label;
+      }, 1400);
+    }
+    try {
+      navigator.clipboard.writeText(text).then(done, done);
+    } catch (e) {
+      done();
+    }
+  }
+
+  document.getElementById("copy").addEventListener("click", function () {
+    copy(cmd.textContent, this);
+  });
+  document.getElementById("copycargo").addEventListener("click", function () {
+    copy("cargo install moon", this);
+  });
+
+  if (!link) {
+    title.textContent = "Nothing to install";
+    lead.textContent = "This page needs a type and a target, for example ?type=github&repo=owner/name or ?type=install&url=https://example.com/app.tar.gz.";
+    go.style.display = "none";
+    document.getElementById("copy").style.display = "none";
+    cmd.textContent = "moon install";
+    return;
+  }
+
+  var name = repo || url;
+  title.textContent = type === "github" ? "Install " + name : "Install from a link";
+  document.title = type === "github" ? "Install " + name + " with moon" : "Install with moon";
+  lead.textContent =
+    type === "github"
+      ? "moon asks GitHub for the newest release of " + name + " and installs its .moon package in a terminal."
+      : "moon downloads the file in a terminal and installs it.";
+  go.href = link;
+  go.textContent = type === "github" ? "Install " + name : "Open in moon";
+  cmd.textContent = "moon install " + link;
+  hint.textContent = "";
+
+  setTimeout(function () {
+    location.href = link;
+  }, 250);
+})();
+</script>
+</body>
+</html>
